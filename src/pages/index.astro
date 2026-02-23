@@ -450,13 +450,19 @@ function formatBatchDate(dateStr: string): string {
   // ===== BATCH COUNTDOWN =====
   const batchBanner = document.getElementById('batchBanner');
   if (batchBanner) {
-    const batchStart = batchBanner.dataset.start ? new Date(batchBanner.dataset.start) : null;
-    const batchEnd = batchBanner.dataset.end ? new Date(batchBanner.dataset.end) : null;
+    const batchStartStr = batchBanner.dataset.start;
+    const batchEndStr = batchBanner.dataset.end;
     const batchStatus = batchBanner.dataset.status;
+    const batchStart = batchStartStr ? new Date(batchStartStr) : null;
+    const batchEnd = batchEndStr ? new Date(batchEndStr) : null;
+
+    let countdownInterval = null;
+    let alreadyEnded = false;
 
     function updateBatchCountdown() {
       const el = document.getElementById('batchBannerCountdown');
       if (!el || !batchStart || !batchEnd) return;
+      if (alreadyEnded) return;
 
       const now = new Date();
       let diff = 0;
@@ -471,9 +477,24 @@ function formatBatchDate(dateStr: string): string {
       }
 
       if (diff <= 0) {
-        el.textContent = batchStatus === 'upcoming' ? '🎉 Sudah dibuka!' : '🔒 Sudah ditutup';
-        // Reload after a short delay to update page state
-        setTimeout(() => window.location.reload(), 2000);
+        alreadyEnded = true;
+        if (countdownInterval) clearInterval(countdownInterval);
+
+        if (batchStatus === 'upcoming') {
+          // Batch just opened — update banner to green "open" style
+          el.textContent = '🎉 Sudah dibuka!';
+          batchBanner.className = 'batch-banner batch-banner-open';
+        } else {
+          // Batch just closed — update banner to red "closed" style
+          el.textContent = '🔒 Sudah ditutup';
+          batchBanner.className = 'batch-banner batch-banner-closed';
+          // Disable "Add to Cart" buttons gracefully
+          document.querySelectorAll('.btn-cart').forEach(btn => {
+            btn.disabled = true;
+            btn.textContent = 'Ditutup';
+            btn.style.opacity = '0.5';
+          });
+        }
         return;
       }
 
@@ -482,7 +503,7 @@ function formatBatchDate(dateStr: string): string {
       const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const secs = Math.floor((diff % (1000 * 60)) / 1000);
 
-      let parts = [];
+      const parts = [];
       if (days > 0) parts.push(`${days} hari`);
       if (hours > 0) parts.push(`${hours} jam`);
       parts.push(`${mins} menit`);
@@ -492,7 +513,7 @@ function formatBatchDate(dateStr: string): string {
     }
 
     updateBatchCountdown();
-    setInterval(updateBatchCountdown, 1000);
+    countdownInterval = setInterval(updateBatchCountdown, 1000);
   }
 </script>
 
