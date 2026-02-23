@@ -2,7 +2,7 @@ import { pgTable, serial, text, integer, boolean, timestamp, jsonb, varchar, pgE
 
 export const productTypeEnum = pgEnum('product_type', ['paket', 'satuan']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'confirmed', 'processing', 'completed', 'cancelled']);
-export const kelompokEnum = pgEnum('kelompok', ['MR1', 'MR2', 'MR3', 'MR4', 'SMD1', 'SMD2']);
+export const kelompokEnum = pgEnum('kelompok', ['MR1', 'MR2', 'MR3', 'MR4', 'SMD1', 'SMD2', 'CHP']);
 
 export const products = pgTable('products', {
     id: serial('id').primaryKey(),
