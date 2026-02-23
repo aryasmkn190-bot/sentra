@@ -98,7 +98,7 @@ export function formatOrderMessage(order: {
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `💳 *Segera Lakukan Pembayaran:*\n`;
     message += order.paymentInfo || 'Hubungi admin untuk info pembayaran';
-    message += `Kirim bukti transfer ke nomor ini.`;
+    message += `\n\nKirim bukti transfer ke nomor ini.`;
     message += `\n\nTerima kasih telah berbelanja di *Sentra*! 🙏`;
 
     return message;
