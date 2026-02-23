@@ -4,12 +4,16 @@ interface SendMessageOptions {
 }
 
 export async function sendWhatsAppMessage({ number, message }: SendMessageOptions): Promise<boolean> {
-    const apiUrl = import.meta.env.EVOLUTION_API_URL || process.env.EVOLUTION_API_URL;
-    const apiKey = import.meta.env.EVOLUTION_API_KEY || process.env.EVOLUTION_API_KEY;
-    const instance = import.meta.env.EVOLUTION_INSTANCE || process.env.EVOLUTION_INSTANCE;
+    const apiUrl = (import.meta.env.EVOLUTION_API_URL ?? process.env.EVOLUTION_API_URL ?? '').trim();
+    const apiKey = (import.meta.env.EVOLUTION_API_KEY ?? process.env.EVOLUTION_API_KEY ?? '').trim();
+    const instance = (import.meta.env.EVOLUTION_INSTANCE ?? process.env.EVOLUTION_INSTANCE ?? '').trim();
 
     if (!apiUrl || !apiKey || !instance) {
-        console.error('[WA] Evolution API not configured');
+        console.error('[WA] Evolution API not configured. Missing vars:', {
+            hasApiUrl: !!apiUrl,
+            hasApiKey: !!apiKey,
+            hasInstance: !!instance,
+        });
         return false;
     }
 
@@ -22,10 +26,11 @@ export async function sendWhatsAppMessage({ number, message }: SendMessageOption
         normalizedNumber = '62' + normalizedNumber;
     }
 
-    console.log(`[WA] Sending message to ${normalizedNumber} via ${instance}...`);
+    const endpoint = `${apiUrl}/message/sendText/${instance}`;
+    console.log(`[WA] Sending to ${normalizedNumber} via ${endpoint}`);
 
     try {
-        const response = await fetch(`${apiUrl}/message/sendText/${instance}`, {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -44,10 +49,10 @@ export async function sendWhatsAppMessage({ number, message }: SendMessageOption
             return false;
         }
 
-        console.log('[WA] Message sent successfully');
+        console.log('[WA] Message sent successfully:', responseText.slice(0, 100));
         return true;
     } catch (error) {
-        console.error('[WA] Error sending message:', error);
+        console.error('[WA] Fetch error:', error instanceof Error ? error.message : error);
         return false;
     }
 }
