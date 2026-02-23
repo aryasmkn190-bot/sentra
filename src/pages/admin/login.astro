@@ -1,0 +1,229 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Login Admin — Sentra">
+  <div class="login-page">
+    <div class="login-bg">
+      <div class="login-blob login-blob-1"></div>
+      <div class="login-blob login-blob-2"></div>
+      <div class="login-grid"></div>
+    </div>
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">
+          <div class="login-logo-mark">S</div>
+        </div>
+        <h1>Sentra</h1>
+        <p>Admin Panel</p>
+      </div>
+      <form class="login-form" id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <div class="input-wrap">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <input type="text" id="username" name="username" class="form-input form-input-icon" placeholder="Masukkan username" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-wrap">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="password" name="password" class="form-input form-input-icon" placeholder="Masukkan password" required />
+          </div>
+        </div>
+        <div class="login-error" id="loginError" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg" id="loginBtn">
+          <span id="loginBtnText">🔐 Login</span>
+          <span id="loginBtnLoading" style="display:none;">⏳ Memproses...</span>
+        </button>
+      </form>
+      <a href="/" class="login-back">← Kembali ke Toko</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const loginBtn = document.getElementById('loginBtn');
+    const loginBtnText = document.getElementById('loginBtnText');
+    const loginBtnLoading = document.getElementById('loginBtnLoading');
+    const loginError = document.getElementById('loginError');
+
+    loginBtn.disabled = true;
+    loginBtnText.style.display = 'none';
+    loginBtnLoading.style.display = 'inline';
+    loginError.style.display = 'none';
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        window.location.href = '/admin';
+      } else {
+        loginError.textContent = result.message;
+        loginError.style.display = 'block';
+        loginBtn.disabled = false;
+        loginBtnText.style.display = 'inline';
+        loginBtnLoading.style.display = 'none';
+      }
+    } catch (error) {
+      loginError.textContent = 'Terjadi kesalahan. Silakan coba lagi.';
+      loginError.style.display = 'block';
+      loginBtn.disabled = false;
+      loginBtnText.style.display = 'inline';
+      loginBtnLoading.style.display = 'none';
+    }
+  });
+</script>
+
+<style>
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-lg);
+    background: linear-gradient(135deg, #EEF2FF, #F8F9FC);
+  }
+
+  .login-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .login-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.6;
+  }
+
+  .login-blob-1 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.2), transparent 70%);
+    top: -10%;
+    right: 20%;
+    animation: float 8s ease-in-out infinite;
+  }
+
+  .login-blob-2 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(245, 87, 108, 0.12), transparent 70%);
+    bottom: 10%;
+    left: 20%;
+    animation: float 10s ease-in-out infinite reverse;
+  }
+
+  .login-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79, 70, 229, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79, 70, 229, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(ellipse 60% 50% at center, black, transparent);
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 440px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: 40px 36px;
+    box-shadow: var(--shadow-xl);
+    position: relative;
+    z-index: 1;
+    animation: slideInUp 0.5s ease;
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .login-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .login-logo-mark {
+    width: 56px;
+    height: 56px;
+    background: var(--gradient-primary);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 1.5rem;
+    box-shadow: var(--shadow-accent);
+  }
+
+  .login-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+
+  .login-header p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .input-wrap { position: relative; }
+
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .form-input-icon { padding-left: 42px; }
+
+  .login-error {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--color-danger);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    margin-bottom: var(--space-md);
+  }
+
+  .login-back {
+    display: block;
+    text-align: center;
+    margin-top: var(--space-xl);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    transition: color var(--transition-fast);
+  }
+
+  .login-back:hover {
+    color: var(--color-accent);
+  }
+</style>

@@ -1,0 +1,285 @@
+---
+
+---
+<header class="header">
+  <div class="container header-inner">
+    <a href="/" class="header-logo">
+      <div class="logo-mark">
+        <span>S</span>
+      </div>
+      <span class="logo-text">Sentra</span>
+    </a>
+    <nav class="header-nav">
+      <a href="/" class="header-link">Beranda</a>
+      <a href="/#paket" class="header-link">Paket</a>
+      <a href="/#satuan" class="header-link">Satuan</a>
+    </nav>
+    <div class="header-actions">
+      <button class="cart-btn" id="cartToggleBtn" aria-label="Keranjang belanja">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        <span class="cart-badge" id="cartBadge">0</span>
+      </button>
+      <button class="mobile-nav-btn" id="mobileNavBtn" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+<div class="mobile-nav-drawer" id="mobileNavDrawer">
+  <div class="mobile-nav-header">
+    <div class="logo-mark"><span>S</span></div>
+    <span class="logo-text">Sentra</span>
+    <button class="mobile-nav-close" id="mobileNavClose">✕</button>
+  </div>
+  <nav class="mobile-nav-links">
+    <a href="/">🏠 Beranda</a>
+    <a href="/#paket">📦 Produk Paket</a>
+    <a href="/#satuan">🚬 Produk Satuan</a>
+    <a href="/checkout">🛒 Checkout</a>
+  </nav>
+</div>
+
+<script>
+  const mobileNavBtn = document.getElementById('mobileNavBtn');
+  const mobileNavClose = document.getElementById('mobileNavClose');
+  const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+  const mobileNavDrawer = document.getElementById('mobileNavDrawer');
+
+  function openMobileNav() {
+    mobileNavDrawer?.classList.add('open');
+    mobileNavOverlay?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMobileNav() {
+    mobileNavDrawer?.classList.remove('open');
+    mobileNavOverlay?.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  mobileNavBtn?.addEventListener('click', openMobileNav);
+  mobileNavClose?.addEventListener('click', closeMobileNav);
+  mobileNavOverlay?.addEventListener('click', closeMobileNav);
+</script>
+
+<style>
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: var(--gradient-primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  }
+
+  .logo-text {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+  }
+
+  .logo-dk {
+    color: var(--color-accent);
+  }
+
+  .header-nav {
+    display: flex;
+    gap: 32px;
+  }
+
+  .header-link {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    position: relative;
+    padding: 4px 0;
+    transition: color var(--transition-normal);
+  }
+
+  .header-link::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--gradient-primary);
+    border-radius: 2px;
+    transition: width var(--transition-normal);
+  }
+
+  .header-link:hover { color: var(--color-accent); }
+  .header-link:hover::after { width: 100%; }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .cart-btn {
+    position: relative;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    padding: 10px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cart-btn:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .cart-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--gradient-primary);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    min-width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+  }
+
+  .cart-badge.bump { animation: bump 0.3s ease; }
+
+  .mobile-nav-btn {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+  }
+
+  .mobile-nav-btn span {
+    width: 22px;
+    height: 2px;
+    background: var(--color-text-primary);
+    border-radius: 2px;
+  }
+
+  .mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 1001;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+
+  .mobile-nav-overlay.open { opacity: 1; }
+
+  .mobile-nav-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 300px;
+    background: var(--color-bg-secondary);
+    z-index: 1002;
+    transform: translateX(100%);
+    transition: transform var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .mobile-nav-drawer.open { transform: translateX(0); }
+
+  .mobile-nav-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .mobile-nav-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+
+  .mobile-nav-links {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-md);
+  }
+
+  .mobile-nav-links a {
+    padding: 14px 16px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+  }
+
+  .mobile-nav-links a:hover {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+
+  @media (max-width: 768px) {
+    .header-nav { display: none; }
+    .mobile-nav-btn { display: flex; }
+    .mobile-nav-overlay { display: block; pointer-events: none; }
+    .mobile-nav-overlay.open { pointer-events: all; }
+  }
+</style>

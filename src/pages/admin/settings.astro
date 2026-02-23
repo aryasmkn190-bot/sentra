@@ -1,0 +1,589 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { settings } from '../../lib/schema';
+
+let currentSettings: Record<string, string> = {};
+try {
+  const allSettings = await db.select().from(settings);
+  allSettings.forEach(s => { currentSettings[s.key] = s.value; });
+} catch (error) {
+  console.error('Error fetching settings:', error);
+}
+
+// Batch helper
+const batchStart = currentSettings.batch_start || '';
+const batchEnd = currentSettings.batch_end || '';
+const batchName = currentSettings.batch_name || '';
+const batchActive = currentSettings.batch_active === 'true';
+
+// Determine batch status server-side for initial render
+let batchStatus: 'inactive' | 'upcoming' | 'active' | 'ended' = 'inactive';
+if (batchActive && batchStart && batchEnd) {
+  const now = new Date();
+  const start = new Date(batchStart);
+  const end = new Date(batchEnd);
+  if (now < start) batchStatus = 'upcoming';
+  else if (now >= start && now <= end) batchStatus = 'active';
+  else batchStatus = 'ended';
+}
+---
+
+<AdminLayout title="Pengaturan" activeMenu="settings">
+  <div class="settings-grid">
+    <!-- Batch Ordering -->
+    <div class="settings-card settings-card-wide">
+      <div class="sc-header">
+        <div class="sc-icon" style="background: linear-gradient(135deg, #EF4444, #F97316);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="sc-title-group">
+          <h3>Sesi Batch Pembelian</h3>
+          <span class="sc-subtitle">Atur periode waktu pembelian dapat dilakukan</span>
+        </div>
+      </div>
+
+      <!-- Batch Status Banner -->
+      <div class={`batch-status-banner batch-status-${batchStatus}`} id="batchStatusBanner">
+        <div class="batch-status-indicator">
+          <span class={`batch-dot batch-dot-${batchStatus}`}></span>
+          <span class="batch-status-text" id="batchStatusText">
+            {batchStatus === 'active' ? '🟢 Batch Sedang Aktif' :
+             batchStatus === 'upcoming' ? '🟡 Batch Akan Datang' :
+             batchStatus === 'ended' ? '🔴 Batch Sudah Berakhir' :
+             '⚪ Batch Tidak Aktif'}
+          </span>
+        </div>
+        {batchStatus === 'active' && (
+          <div class="batch-countdown" id="batchCountdown">Menghitung...</div>
+        )}
+        {batchStatus === 'upcoming' && (
+          <div class="batch-countdown" id="batchCountdown">Menghitung...</div>
+        )}
+      </div>
+
+      <form class="settings-form" data-section="batch" id="batchForm">
+        <div class="form-group">
+          <label class="form-label">Nama Batch <span class="form-optional">(opsional)</span></label>
+          <input type="text" name="batch_name" class="form-input" value={batchName} placeholder="contoh: Batch Februari 2026" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Mulai</label>
+            <input type="datetime-local" name="batch_start" class="form-input" value={batchStart} id="batchStartInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Berakhir</label>
+            <input type="datetime-local" name="batch_end" class="form-input" value={batchEnd} id="batchEndInput" />
+          </div>
+        </div>
+        <div class="batch-toggle-row">
+          <div class="toggle-info">
+            <strong>Aktifkan Batch</strong>
+            <small>Jika aktif, pembelian hanya bisa dilakukan saat periode batch berlangsung</small>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="batch_active" value="true" checked={batchActive} id="batchActiveToggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">💾 Simpan Pengaturan Batch</button>
+      </form>
+    </div>
+
+    <!-- Store Info -->
+    <div class="settings-card">
+      <div class="sc-header">
+        <div class="sc-icon" style="background: linear-gradient(135deg, #3B82F6, #60A5FA);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <h3>Informasi Toko</h3>
+      </div>
+      <form class="settings-form" data-section="store">
+        <div class="form-group">
+          <label class="form-label">Nama Toko</label>
+          <input type="text" name="store_name" class="form-input" value={currentSettings.store_name || 'Sentra'} />
+        </div>
+        <div class="form-group">
+          <label class="form-label">No. Telepon Toko</label>
+          <input type="text" name="store_phone" class="form-input" value={currentSettings.store_phone || ''} placeholder="628xxxxxxxxxx" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Info Pembayaran</label>
+          <textarea name="payment_info" class="form-input form-textarea" rows="3">{currentSettings.payment_info || ''}</textarea>
+          <small class="form-hint">Info ini akan dikirim ke pelanggan di pesan WhatsApp</small>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">💾 Simpan Perubahan</button>
+      </form>
+    </div>
+
+    <!-- Evolution API -->
+    <div class="settings-card">
+      <div class="sc-header">
+        <div class="sc-icon" style="background: linear-gradient(135deg, #22C55E, #4ADE80);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/></svg>
+        </div>
+        <h3>Evolution API (WhatsApp)</h3>
+      </div>
+      <form class="settings-form" data-section="evolution">
+        <div class="form-group">
+          <label class="form-label">API URL</label>
+          <input type="url" name="evolution_api_url" class="form-input" value={currentSettings.evolution_api_url || ''} placeholder="https://your-api.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input type="text" name="evolution_api_key" class="form-input" value={currentSettings.evolution_api_key || ''} placeholder="your-api-key" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Instance Name</label>
+          <input type="text" name="evolution_instance" class="form-input" value={currentSettings.evolution_instance || ''} placeholder="your-instance" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">💾 Simpan Perubahan</button>
+      </form>
+    </div>
+
+    <!-- Security -->
+    <div class="settings-card">
+      <div class="sc-header">
+        <div class="sc-icon" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>Keamanan</h3>
+      </div>
+      <div class="security-info">
+        <p>Kredensial admin dikonfigurasi melalui environment variables:</p>
+        <div class="env-grid">
+          <code>ADMIN_USERNAME</code>
+          <code>ADMIN_PASSWORD</code>
+          <code>ADMIN_SECRET</code>
+        </div>
+        <p class="text-muted">Ubah melalui file <code>.env</code> dan restart server.</p>
+      </div>
+    </div>
+
+    <!-- Groups -->
+    <div class="settings-card">
+      <div class="sc-header">
+        <div class="sc-icon" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Kelompok</h3>
+      </div>
+      <div class="groups-list">
+        <span class="group-chip group-chip-green">MR1</span>
+        <span class="group-chip group-chip-green">MR2</span>
+        <span class="group-chip group-chip-green">MR3</span>
+        <span class="group-chip group-chip-green">MR4</span>
+        <span class="group-chip group-chip-blue">SMD1</span>
+        <span class="group-chip group-chip-blue">SMD2</span>
+      </div>
+      <p class="text-muted" style="margin-top: 12px; font-size: 0.82rem;">
+        Kelompok dikonfigurasi di schema. Hubungi developer untuk mengubah.
+      </p>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  document.querySelectorAll('.settings-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const section = form.dataset.section;
+      const formData = new FormData(form);
+      const data: Record<string, string> = {};
+      formData.forEach((value, key) => { data[key] = value.toString(); });
+
+      // Handle batch_active checkbox specially
+      if (section === 'batch') {
+        const toggle = document.getElementById('batchActiveToggle') as HTMLInputElement;
+        data.batch_active = toggle?.checked ? 'true' : 'false';
+      }
+
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Menyimpan...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (result.success) {
+          window.showToast?.('Pengaturan disimpan');
+          if (section === 'batch') updateBatchStatus();
+        }
+        else { window.showToast?.('Gagal menyimpan', 'error'); }
+      } catch { window.showToast?.('Terjadi kesalahan', 'error'); }
+      finally { btn.textContent = originalText; btn.disabled = false; }
+    });
+  });
+
+  // ===== BATCH STATUS & COUNTDOWN =====
+  function updateBatchStatus() {
+    const toggle = document.getElementById('batchActiveToggle') as HTMLInputElement;
+    const startInput = document.getElementById('batchStartInput') as HTMLInputElement;
+    const endInput = document.getElementById('batchEndInput') as HTMLInputElement;
+    const banner = document.getElementById('batchStatusBanner');
+    const statusText = document.getElementById('batchStatusText');
+    let countdown = document.getElementById('batchCountdown');
+
+    if (!banner || !statusText) return;
+
+    const isActive = toggle?.checked;
+    const start = startInput?.value ? new Date(startInput.value) : null;
+    const end = endInput?.value ? new Date(endInput.value) : null;
+    const now = new Date();
+
+    // Remove old status classes
+    banner.className = 'batch-status-banner';
+
+    let status = 'inactive';
+    if (isActive && start && end) {
+      if (now < start) status = 'upcoming';
+      else if (now >= start && now <= end) status = 'active';
+      else status = 'ended';
+    }
+
+    banner.classList.add(`batch-status-${status}`);
+
+    const labels: Record<string, string> = {
+      active: '🟢 Batch Sedang Aktif',
+      upcoming: '🟡 Batch Akan Datang',
+      ended: '🔴 Batch Sudah Berakhir',
+      inactive: '⚪ Batch Tidak Aktif',
+    };
+    statusText.textContent = labels[status];
+
+    // Handle countdown
+    if (!countdown && (status === 'active' || status === 'upcoming')) {
+      countdown = document.createElement('div');
+      countdown.className = 'batch-countdown';
+      countdown.id = 'batchCountdown';
+      banner.querySelector('.batch-status-indicator')?.after(countdown);
+    }
+
+    if (countdown) {
+      if (status === 'active' || status === 'upcoming') {
+        countdown.style.display = '';
+      } else {
+        countdown.style.display = 'none';
+      }
+    }
+  }
+
+  function updateCountdown() {
+    const toggle = document.getElementById('batchActiveToggle') as HTMLInputElement;
+    const startInput = document.getElementById('batchStartInput') as HTMLInputElement;
+    const endInput = document.getElementById('batchEndInput') as HTMLInputElement;
+    const countdown = document.getElementById('batchCountdown');
+
+    if (!countdown || !toggle?.checked) return;
+
+    const start = startInput?.value ? new Date(startInput.value) : null;
+    const end = endInput?.value ? new Date(endInput.value) : null;
+    const now = new Date();
+
+    if (!start || !end) return;
+
+    let diff = 0;
+    let prefix = '';
+
+    if (now < start) {
+      diff = start.getTime() - now.getTime();
+      prefix = 'Mulai dalam ';
+    } else if (now <= end) {
+      diff = end.getTime() - now.getTime();
+      prefix = 'Berakhir dalam ';
+    } else {
+      countdown.textContent = 'Batch sudah berakhir';
+      return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    let parts: string[] = [];
+    if (days > 0) parts.push(`${days}h`);
+    if (hours > 0) parts.push(`${hours}j`);
+    parts.push(`${mins}m`);
+    parts.push(`${secs}d`);
+
+    countdown.textContent = prefix + parts.join(' ');
+  }
+
+  // Update countdown every second
+  setInterval(updateCountdown, 1000);
+  updateCountdown();
+</script>
+
+<style>
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 20px;
+  }
+
+  .settings-card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .settings-card {
+    padding: 24px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.15s;
+  }
+  .settings-card:hover { border-color: var(--color-border-hover); }
+
+  .sc-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sc-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sc-header h3 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .sc-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sc-subtitle {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ===== BATCH STATUS ===== */
+  .batch-status-banner {
+    padding: 14px 18px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    transition: all 0.3s ease;
+  }
+
+  .batch-status-inactive { background: var(--color-bg-tertiary); border: 1px solid var(--color-border); }
+  .batch-status-upcoming { background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.2); }
+  .batch-status-active { background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.2); }
+  .batch-status-ended { background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); }
+
+  .batch-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .batch-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .batch-dot-active { background: #22C55E; box-shadow: 0 0 8px rgba(34,197,94,0.4); animation: pulse-glow 2s ease-in-out infinite; }
+  .batch-dot-upcoming { background: #F59E0B; box-shadow: 0 0 8px rgba(245,158,11,0.3); }
+  .batch-dot-ended { background: #EF4444; }
+  .batch-dot-inactive { background: #9CA3AF; }
+
+  .batch-status-text {
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .batch-countdown {
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    color: var(--color-text-secondary);
+    background: rgba(255,255,255,0.7);
+    padding: 4px 14px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .form-optional {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  /* ===== TOGGLE SWITCH ===== */
+  .batch-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+  }
+
+  .toggle-info strong {
+    display: block;
+    font-size: 0.88rem;
+    margin-bottom: 2px;
+  }
+
+  .toggle-info small {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 52px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #D1D5DB;
+    border-radius: 28px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(24px);
+  }
+
+  .security-info {
+    font-size: 0.88rem;
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+  }
+
+  .env-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0;
+  }
+
+  .env-grid code {
+    display: inline-block;
+    background: var(--color-bg-tertiary);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    border: 1px solid var(--color-border);
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  .security-info code {
+    background: var(--color-bg-tertiary);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  .groups-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .group-chip {
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .group-chip-green { background: rgba(34,197,94,0.08); color: #16A34A; }
+  .group-chip-blue { background: rgba(59,130,246,0.08); color: #2563EB; }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: var(--font-body);
+  }
+
+  .form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .settings-card { padding: 18px; }
+    .sc-header { margin-bottom: 16px; padding-bottom: 12px; }
+    .sc-icon { width: 34px; height: 34px; }
+    .sc-icon svg { width: 16px; height: 16px; }
+    .sc-header h3 { font-size: 0.92rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .batch-status-banner { flex-direction: column; align-items: flex-start; }
+  }
+
+  @media (max-width: 480px) {
+    .settings-card { padding: 14px; }
+  }
+</style>

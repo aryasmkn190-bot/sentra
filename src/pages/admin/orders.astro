@@ -1,0 +1,850 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { orders } from '../../lib/schema';
+import { desc } from 'drizzle-orm';
+
+let allOrders: any[] = [];
+try {
+  allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+} catch (error) {
+  console.error('Error fetching orders:', error);
+}
+
+const statusColors: Record<string, string> = {
+  pending: 'warning',
+  confirmed: 'info',
+  processing: 'info',
+  completed: 'success',
+  cancelled: 'danger',
+};
+
+const statusLabels: Record<string, string> = {
+  pending: 'Menunggu',
+  confirmed: 'Dikonfirmasi',
+  processing: 'Diproses',
+  completed: 'Selesai',
+  cancelled: 'Dibatalkan',
+};
+
+// Get unique kelompok values
+const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
+---
+
+<AdminLayout title="Kelola Pesanan" activeMenu="orders">
+  <!-- Filters Row -->
+  <div class="filters-bar">
+    <div class="filters-left">
+      <!-- Status Filters -->
+      <div class="orders-filters" id="filtersScroll">
+        <button class="filter-chip active" data-filter="all">Semua <span class="filter-count">{allOrders.length}</span></button>
+        <button class="filter-chip" data-filter="pending">⏳ Menunggu <span class="filter-count">{allOrders.filter(o => o.status === 'pending').length}</span></button>
+        <button class="filter-chip" data-filter="confirmed">✅ Konfirmasi <span class="filter-count">{allOrders.filter(o => o.status === 'confirmed').length}</span></button>
+        <button class="filter-chip" data-filter="processing">🔄 Proses <span class="filter-count">{allOrders.filter(o => o.status === 'processing').length}</span></button>
+        <button class="filter-chip" data-filter="completed">🎉 Selesai <span class="filter-count">{allOrders.filter(o => o.status === 'completed').length}</span></button>
+        <button class="filter-chip" data-filter="cancelled">❌ Batal <span class="filter-count">{allOrders.filter(o => o.status === 'cancelled').length}</span></button>
+      </div>
+    </div>
+    <div class="filters-right">
+      <!-- Kelompok Filter -->
+      <select class="kelompok-filter" id="kelompokFilter">
+        <option value="all">👥 Semua Kelompok</option>
+        {kelompokList.map(k => (
+          <option value={k}>{k}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <!-- Bulk Action Bar -->
+  <div class="bulk-bar" id="bulkBar">
+    <div class="bulk-bar-inner">
+      <label class="bulk-select-all-label">
+        <input type="checkbox" id="selectAllCheckbox" />
+        <span>Pilih Semua</span>
+      </label>
+      <span class="bulk-count" id="bulkCount">0 dipilih</span>
+      <button class="btn btn-danger-outline btn-sm" id="bulkDeleteBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Hapus Terpilih
+      </button>
+    </div>
+  </div>
+
+  {allOrders.length > 0 ? (
+    <>
+      {/* Desktop Table */}
+      <div class="table-wrapper desktop-view">
+        <table class="table" id="ordersTable">
+          <thead>
+            <tr>
+              <th class="th-check">
+                <input type="checkbox" class="order-check-all" id="desktopCheckAll" title="Pilih Semua" />
+              </th>
+              <th>No. Order</th>
+              <th>Pelanggan</th>
+              <th>Kelompok</th>
+              <th>Item</th>
+              <th>Total</th>
+              <th>WA</th>
+              <th>Status</th>
+              <th>Waktu</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allOrders.map((order) => (
+              <tr data-status={order.status} data-kelompok={order.kelompok} data-order-id={order.id} class="order-row">
+                <td class="td-check">
+                  <input type="checkbox" class="order-checkbox" value={order.id} />
+                </td>
+                <td><code>{order.orderNumber}</code></td>
+                <td>
+                  <strong>{order.customerName}</strong>
+                  <br/><small class="text-muted">{order.whatsappNumber}</small>
+                </td>
+                <td><span class="badge badge-neutral">{order.kelompok}</span></td>
+                <td>
+                  <div class="items-mini">
+                    {(order.items as any[] || []).map((item: any) => (
+                      <small>• {item.productName} ×{item.quantity}</small>
+                    ))}
+                  </div>
+                </td>
+                <td class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></td>
+                <td>{order.waSent ? '✅' : '❌'}</td>
+                <td>
+                  <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
+                    {statusLabels[order.status] || order.status}
+                  </span>
+                </td>
+                <td class="text-muted" style="white-space:nowrap;">
+                  {new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                </td>
+                <td>
+                  <div class="action-group">
+                    <select class="status-select" data-order-id={order.id} data-current={order.status}>
+                      <option value="pending" selected={order.status === 'pending'}>Menunggu</option>
+                      <option value="confirmed" selected={order.status === 'confirmed'}>Dikonfirmasi</option>
+                      <option value="processing" selected={order.status === 'processing'}>Diproses</option>
+                      <option value="completed" selected={order.status === 'completed'}>Selesai</option>
+                      <option value="cancelled" selected={order.status === 'cancelled'}>Dibatalkan</option>
+                    </select>
+                    <button class="delete-btn" data-order-id={order.id} title="Hapus pesanan">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div class="mobile-view">
+        {allOrders.map((order) => (
+          <div class="order-card" data-status={order.status} data-kelompok={order.kelompok} data-order-id={order.id}>
+            <div class="oc-header">
+              <div class="oc-header-left">
+                <input type="checkbox" class="order-checkbox" value={order.id} />
+                <div class="oc-customer">
+                  <strong>{order.customerName}</strong>
+                  <span class="text-muted">{order.whatsappNumber}</span>
+                </div>
+              </div>
+              <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
+                {statusLabels[order.status] || order.status}
+              </span>
+            </div>
+            <div class="oc-body">
+              <div class="oc-items">
+                {(order.items as any[] || []).map((item: any) => (
+                  <small>• {item.productName} ×{item.quantity}</small>
+                ))}
+              </div>
+            </div>
+            <div class="oc-footer">
+              <div class="oc-meta-row">
+                <code>{order.orderNumber}</code>
+                <span class="badge badge-neutral">{order.kelompok}</span>
+                <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+              </div>
+              <div class="oc-action-row">
+                <span class="oc-total">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+                <div class="oc-action-btns">
+                  <select class="status-select-mobile" data-order-id={order.id} data-current={order.status}>
+                    <option value="pending" selected={order.status === 'pending'}>Menunggu</option>
+                    <option value="confirmed" selected={order.status === 'confirmed'}>Dikonfirmasi</option>
+                    <option value="processing" selected={order.status === 'processing'}>Diproses</option>
+                    <option value="completed" selected={order.status === 'completed'}>Selesai</option>
+                    <option value="cancelled" selected={order.status === 'cancelled'}>Dibatalkan</option>
+                  </select>
+                  <button class="delete-btn-mobile" data-order-id={order.id} title="Hapus">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  ) : (
+    <div class="empty-state-card">
+      <div class="empty-icon">📦</div>
+      <p>Belum ada pesanan masuk</p>
+      <small>Pesanan dari pelanggan akan muncul di sini</small>
+    </div>
+  )}
+
+  <!-- Delete Confirm Modal -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-modal">
+      <div class="confirm-icon">🗑️</div>
+      <h3 id="confirmTitle">Hapus Pesanan?</h3>
+      <p id="confirmDesc">Pesanan yang dihapus tidak dapat dikembalikan.</p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" id="confirmCancel">Batal</button>
+        <button class="btn btn-danger" id="confirmDelete">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // ===== STATE =====
+  let activeStatusFilter = 'all';
+  let activeKelompokFilter = 'all';
+  let selectedIds = new Set();
+  let pendingDeleteIds = [];
+
+  // ===== FILTER LOGIC =====
+  function isRowVisible(el) {
+    const status = el.dataset.status;
+    const kelompok = el.dataset.kelompok;
+    const matchStatus = activeStatusFilter === 'all' || status === activeStatusFilter;
+    const matchKelompok = activeKelompokFilter === 'all' || kelompok === activeKelompokFilter;
+    return matchStatus && matchKelompok;
+  }
+
+  function applyFilters() {
+    // Desktop
+    document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
+      row.style.display = isRowVisible(row) ? '' : 'none';
+    });
+    // Mobile
+    document.querySelectorAll('.order-card').forEach(card => {
+      card.style.display = isRowVisible(card) ? '' : 'none';
+    });
+    updateBulkBar();
+  }
+
+  // Status filter chips
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStatusFilter = btn.dataset.filter;
+      applyFilters();
+    });
+  });
+
+  // Kelompok filter
+  document.getElementById('kelompokFilter')?.addEventListener('change', (e) => {
+    activeKelompokFilter = e.target.value;
+    applyFilters();
+  });
+
+  // ===== CHECKBOX / SELECTION =====
+  function getVisibleCheckboxes() {
+    return [...document.querySelectorAll('.order-checkbox')].filter(cb => {
+      const container = cb.closest('[data-status]');
+      return container && container.style.display !== 'none';
+    });
+  }
+
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    const countEl = document.getElementById('bulkCount');
+    const selectAllCb = document.getElementById('selectAllCheckbox');
+    const desktopAllCb = document.getElementById('desktopCheckAll');
+
+    // Sync checkboxes with selectedIds
+    document.querySelectorAll('.order-checkbox').forEach(cb => {
+      cb.checked = selectedIds.has(parseInt(cb.value));
+    });
+
+    if (bar) bar.classList.toggle('visible', selectedIds.size > 0);
+    if (countEl) countEl.textContent = `${selectedIds.size} dipilih`;
+
+    // Update "select all" checkboxes
+    const visibleCbs = getVisibleCheckboxes();
+    const allChecked = visibleCbs.length > 0 && visibleCbs.every(cb => cb.checked);
+    if (selectAllCb) selectAllCb.checked = allChecked;
+    if (desktopAllCb) desktopAllCb.checked = allChecked;
+  }
+
+  // Individual checkbox change
+  document.querySelectorAll('.order-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = parseInt(cb.value);
+      if (cb.checked) selectedIds.add(id);
+      else selectedIds.delete(id);
+      updateBulkBar();
+    });
+  });
+
+  // Select All (bulk bar)
+  document.getElementById('selectAllCheckbox')?.addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    getVisibleCheckboxes().forEach(cb => {
+      const id = parseInt(cb.value);
+      if (checked) selectedIds.add(id);
+      else selectedIds.delete(id);
+      cb.checked = checked;
+    });
+    updateBulkBar();
+  });
+
+  // Select All (desktop table header)
+  document.getElementById('desktopCheckAll')?.addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    getVisibleCheckboxes().forEach(cb => {
+      const id = parseInt(cb.value);
+      if (checked) selectedIds.add(id);
+      else selectedIds.delete(id);
+      cb.checked = checked;
+    });
+    updateBulkBar();
+  });
+
+  // ===== DELETE LOGIC =====
+  function showConfirm(title, desc, ids) {
+    pendingDeleteIds = ids;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmDesc').textContent = desc;
+    document.getElementById('confirmOverlay')?.classList.add('open');
+  }
+
+  function hideConfirm() {
+    document.getElementById('confirmOverlay')?.classList.remove('open');
+    pendingDeleteIds = [];
+  }
+
+  // Single delete buttons
+  document.querySelectorAll('.delete-btn, .delete-btn-mobile').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = parseInt(btn.dataset.orderId);
+      showConfirm('Hapus Pesanan?', 'Pesanan ini akan dihapus permanen dan tidak dapat dikembalikan.', [orderId]);
+    });
+  });
+
+  // Bulk delete button
+  document.getElementById('bulkDeleteBtn')?.addEventListener('click', () => {
+    if (selectedIds.size === 0) return;
+    showConfirm(
+      `Hapus ${selectedIds.size} Pesanan?`,
+      `${selectedIds.size} pesanan yang dipilih akan dihapus permanen.`,
+      [...selectedIds]
+    );
+  });
+
+  // Cancel button
+  document.getElementById('confirmCancel')?.addEventListener('click', hideConfirm);
+  document.getElementById('confirmOverlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) hideConfirm();
+  });
+
+  // Confirm delete
+  document.getElementById('confirmDelete')?.addEventListener('click', async () => {
+    if (pendingDeleteIds.length === 0) return;
+    const btn = document.getElementById('confirmDelete');
+    if (btn) { btn.textContent = 'Menghapus...'; btn.disabled = true; }
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: pendingDeleteIds }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        // Remove rows/cards from DOM
+        pendingDeleteIds.forEach(id => {
+          document.querySelectorAll(`[data-order-id="${id}"]`).forEach(el => {
+            if (el.tagName === 'TR' || el.classList.contains('order-card')) {
+              el.style.transition = 'opacity 0.3s, transform 0.3s';
+              el.style.opacity = '0';
+              el.style.transform = 'translateX(20px)';
+              setTimeout(() => el.remove(), 300);
+            }
+          });
+          selectedIds.delete(id);
+        });
+        window.showToast?.(`${result.deleted} pesanan dihapus`);
+        updateBulkBar();
+      } else {
+        window.showToast?.(result.message || 'Gagal menghapus', 'error');
+      }
+    } catch {
+      window.showToast?.('Terjadi kesalahan', 'error');
+    } finally {
+      hideConfirm();
+      if (btn) { btn.textContent = 'Ya, Hapus'; btn.disabled = false; }
+    }
+  });
+
+  // ===== STATUS UPDATE =====
+  document.querySelectorAll('.status-select, .status-select-mobile').forEach(select => {
+    select.addEventListener('change', async () => {
+      const orderId = parseInt(select.dataset.orderId);
+      const newStatus = select.value;
+      try {
+        const res = await fetch('/api/orders', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: orderId, status: newStatus }),
+        });
+        const result = await res.json();
+        if (result.success) {
+          window.showToast?.('Status pesanan diperbarui');
+          document.querySelectorAll(`[data-order-id="${orderId}"]`).forEach(el => {
+            if (el.dataset.status !== undefined) el.dataset.status = newStatus;
+          });
+        } else { window.showToast?.('Gagal memperbarui', 'error'); }
+      } catch { window.showToast?.('Terjadi kesalahan', 'error'); }
+    });
+  });
+</script>
+
+<style>
+  /* ===== FILTERS BAR ===== */
+  .filters-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .filters-left { flex: 1; min-width: 0; }
+  .filters-right { flex-shrink: 0; }
+
+  .orders-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    background: white;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: var(--shadow-xs);
+    white-space: nowrap;
+  }
+
+  .filter-chip:hover { border-color: var(--color-border-hover); color: var(--color-accent); }
+
+  .filter-chip.active {
+    background: var(--gradient-primary);
+    border-color: var(--color-accent);
+    color: white;
+    box-shadow: var(--shadow-accent);
+  }
+
+  .filter-count {
+    background: rgba(255,255,255,0.2);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+  }
+
+  .filter-chip:not(.active) .filter-count {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-muted);
+  }
+
+  /* Kelompok Filter */
+  .kelompok-filter {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-family: var(--font-body);
+    font-weight: 600;
+    background: white;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .kelompok-filter:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-subtle);
+  }
+
+  /* ===== BULK ACTION BAR ===== */
+  .bulk-bar {
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    border-radius: var(--radius-lg);
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-bottom: 0;
+    transition: all 0.3s ease;
+  }
+
+  .bulk-bar.visible {
+    max-height: 80px;
+    opacity: 1;
+    padding: 12px 18px;
+    margin-bottom: 16px;
+  }
+
+  .bulk-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: white;
+  }
+
+  .bulk-select-all-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .bulk-select-all-label input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: white;
+    cursor: pointer;
+  }
+
+  .bulk-count {
+    font-size: 0.82rem;
+    font-weight: 700;
+    opacity: 0.9;
+    flex: 1;
+  }
+
+  .btn-danger-outline {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-danger-outline:hover {
+    background: rgba(239,68,68,0.9);
+    border-color: rgba(239,68,68,0.9);
+  }
+
+  /* ===== TABLE CHECKBOXES ===== */
+  .th-check, .td-check { width: 40px; text-align: center; }
+  .th-check input, .td-check input {
+    width: 16px; height: 16px;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  /* ===== ACTION GROUP ===== */
+  .action-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .delete-btn, .delete-btn-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .delete-btn:hover, .delete-btn-mobile:hover {
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--color-danger);
+  }
+
+  .items-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-width: 200px;
+  }
+  .items-mini small { font-size: 0.73rem; color: var(--color-text-muted); }
+
+  .status-select, .status-select-mobile {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-family: var(--font-body);
+    background: white;
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .status-select:focus, .status-select-mobile:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-subtle); }
+
+  .empty-state-card {
+    text-align: center;
+    padding: 48px 24px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+  .empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 12px; }
+  .empty-state-card p { font-weight: 600; color: var(--color-text-secondary); }
+
+  code {
+    font-size: 0.73rem;
+    background: var(--color-bg-tertiary);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  /* ===== CONFIRM MODAL ===== */
+  .confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 24px;
+  }
+
+  .confirm-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .confirm-modal {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: 32px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    animation: modalIn 0.3s ease;
+  }
+
+  @keyframes modalIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .confirm-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .confirm-modal h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+  .confirm-modal p { font-size: 0.88rem; color: var(--color-text-secondary); margin-bottom: 24px; line-height: 1.5; }
+
+  .confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .confirm-actions .btn {
+    padding: 10px 24px;
+    font-size: 0.85rem;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+
+  .btn-secondary {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-border); }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #DC2626, #EF4444);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+  }
+  .btn-danger:hover { box-shadow: 0 6px 16px rgba(239,68,68,0.4); }
+
+  /* ===== MOBILE CARDS ===== */
+  .mobile-view { display: none; }
+
+  .order-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+  .order-card:hover { border-color: var(--color-border-hover); }
+
+  .oc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .oc-header-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .oc-header-left input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+
+  .oc-customer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .oc-customer strong { font-size: 0.9rem; }
+  .oc-customer .text-muted { font-size: 0.75rem; }
+
+  .oc-body {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 10px;
+  }
+  .oc-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .oc-items small { font-size: 0.75rem; color: var(--color-text-muted); }
+
+  .oc-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .oc-action-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .oc-action-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .oc-total {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--color-accent);
+  }
+
+  .status-select-mobile {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    border-radius: var(--radius-md);
+  }
+
+  .delete-btn-mobile {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-md);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .filters-bar {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .filters-right {
+      width: 100%;
+    }
+
+    .kelompok-filter {
+      width: 100%;
+      border-radius: var(--radius-md);
+    }
+
+    .orders-filters {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    .orders-filters::-webkit-scrollbar { display: none; }
+
+    .desktop-view { display: none; }
+    .mobile-view { display: block; }
+
+    .bulk-bar-inner {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .bulk-count { flex: none; }
+  }
+</style>

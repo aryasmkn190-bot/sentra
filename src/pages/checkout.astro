@@ -1,0 +1,750 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { db } from '../lib/db';
+import { settings } from '../lib/schema';
+
+// Fetch batch settings
+let batchOpen = true; // default: allow if no batch config
+let batchEndStr = '';
+try {
+  const allSettings = await db.select().from(settings);
+  const sMap: Record<string, string> = {};
+  allSettings.forEach(s => { sMap[s.key] = s.value; });
+
+  const batchActive = sMap.batch_active === 'true';
+  const batchStart = sMap.batch_start || '';
+  const batchEnd = sMap.batch_end || '';
+
+  if (batchActive && batchStart && batchEnd) {
+    const now = new Date();
+    const start = new Date(batchStart);
+    const end = new Date(batchEnd);
+    batchOpen = now >= start && now <= end;
+    batchEndStr = batchEnd;
+  } else if (batchActive && (!batchStart || !batchEnd)) {
+    batchOpen = false; // batch enabled but no dates = closed
+  }
+} catch (e) {
+  console.error('Error fetching batch settings:', e);
+}
+---
+
+<BaseLayout title="Checkout — Sentra">
+  <Header />
+  
+  <main class="checkout-page">
+    {!batchOpen ? (
+      <div class="container">
+        <div class="checkout-header">
+          <a href="/" class="back-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Kembali ke Beranda
+          </a>
+        </div>
+        <div class="batch-closed-card">
+          <div class="batch-closed-icon">🔒</div>
+          <h2>Pembelian Sedang Ditutup</h2>
+          <p>Saat ini belum ada sesi pembelian yang aktif. Anda tidak bisa melakukan checkout di luar periode batch.</p>
+          <p class="batch-closed-hint">Silakan cek halaman utama untuk informasi batch selanjutnya.</p>
+          <a href="/" class="btn btn-primary btn-lg">← Kembali ke Beranda</a>
+        </div>
+      </div>
+    ) : (
+    <div class="container">
+      <div class="checkout-header">
+        <a href="/" class="back-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Kembali Belanja
+        </a>
+        <h1>Checkout</h1>
+        <p>Lengkapi data untuk menyelesaikan pesanan</p>
+      </div>
+      
+      <div class="checkout-grid">
+        <!-- LEFT: Order Summary -->
+        <div class="checkout-left">
+          <div class="checkout-card">
+            <div class="card-title-row">
+              <h2 class="card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                Ringkasan Pesanan
+              </h2>
+              <span class="item-count" id="itemCount">0 item</span>
+            </div>
+            
+            <div class="order-items" id="orderItems">
+              <div class="order-empty" id="orderEmpty">
+                <div class="order-empty-icon">🛒</div>
+                <p>Keranjang kosong</p>
+                <a href="/" class="btn btn-secondary">← Tambah Produk</a>
+              </div>
+            </div>
+            
+            <div class="order-summary-bar" id="orderSummaryBar" style="display:none;">
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span id="subtotalAmount">Rp 0</span>
+              </div>
+              <div class="summary-row summary-total">
+                <span>Total Pembayaran</span>
+                <span class="total-amount" id="totalAmount">Rp 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Customer Form -->
+        <div class="checkout-right">
+          <div class="checkout-card">
+            <h2 class="card-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Data Pemesan
+            </h2>
+            
+            <form id="checkoutForm">
+              <div class="form-group">
+                <label class="form-label">Nama Lengkap <span class="required">*</span></label>
+                <div class="input-wrap">
+                  <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <input type="text" id="customerName" class="form-input form-input-icon" placeholder="Masukkan nama lengkap" required />
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Nomor WhatsApp <span class="required">*</span></label>
+                <div class="input-wrap">
+                  <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  <input type="tel" id="whatsappNumber" class="form-input form-input-icon" placeholder="08xxxxxxxxxx" required />
+                </div>
+                <span class="form-hint">Detail pesanan akan dikirim ke WhatsApp ini</span>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Kelompok <span class="required">*</span></label>
+                <select id="kelompok" class="form-select" required>
+                  <option value="">Pilih kelompok</option>
+                  <option value="MR1">MR1</option>
+                  <option value="MR2">MR2</option>
+                  <option value="MR3">MR3</option>
+                  <option value="MR4">MR4</option>
+                  <option value="SMD1">SMD1</option>
+                  <option value="SMD2">SMD2</option>
+                </select>
+              </div>
+              
+              <div class="checkout-secure">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Pesanan Anda aman & terenkripsi</span>
+              </div>
+              
+              <button type="submit" class="btn btn-primary btn-full btn-lg checkout-submit" id="submitBtn" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="submitBtnText">Pesan Sekarang</span>
+              </button>
+            </form>
+          </div>
+          
+          <!-- Trust Badges -->
+          <div class="trust-badges">
+            <div class="trust-badge">
+              <span class="trust-icon">🚚</span>
+              <div>
+                <strong>Pengiriman Cepat</strong>
+                <small>Langsung diantar ke kelompok</small>
+              </div>
+            </div>
+            <div class="trust-badge">
+              <span class="trust-icon">💬</span>
+              <div>
+                <strong>Konfirmasi WhatsApp</strong>
+                <small>Detail pesanan via WA</small>
+              </div>
+            </div>
+            <div class="trust-badge">
+              <span class="trust-icon">✅</span>
+              <div>
+                <strong>Produk Terjamin</strong>
+                <small>Kualitas terjaga</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    )}
+  </main>
+
+  <!-- Success Modal -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-modal">
+      <div class="success-icon-wrap">
+        <div class="success-circle">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      </div>
+      <h2>Pesanan Berhasil! 🎉</h2>
+      <p class="success-info">Nomor pesanan Anda:</p>
+      <div class="success-order-number" id="successOrderNumber">SDK-XXXX</div>
+      <p class="success-desc" id="successDesc">Detail pesanan telah dikirim ke WhatsApp Anda.</p>
+      <a href="/" class="btn btn-primary btn-lg btn-full">← Kembali ke Beranda</a>
+    </div>
+  </div>
+
+  <Footer />
+</BaseLayout>
+
+<script>
+  const CART_KEY = 'swasembada_cart';
+  
+  function getCart() {
+    try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
+    catch { return []; }
+  }
+
+  function renderCheckout() {
+    const cart = getCart();
+    const orderItems = document.getElementById('orderItems');
+    const orderEmpty = document.getElementById('orderEmpty');
+    const orderSummaryBar = document.getElementById('orderSummaryBar');
+    const itemCount = document.getElementById('itemCount');
+    const submitBtn = document.getElementById('submitBtn');
+
+    const totalQty = cart.reduce((s, i) => s + i.quantity, 0);
+    if (itemCount) itemCount.textContent = `${totalQty} item`;
+
+    if (!cart.length) {
+      if (orderEmpty) orderEmpty.style.display = 'flex';
+      if (orderSummaryBar) orderSummaryBar.style.display = 'none';
+      if (submitBtn) submitBtn.disabled = true;
+      return;
+    }
+
+    if (orderEmpty) orderEmpty.style.display = 'none';
+    if (orderSummaryBar) orderSummaryBar.style.display = 'block';
+    if (submitBtn) submitBtn.disabled = false;
+
+    const itemsHtml = cart.map(item => `
+      <div class="oi">
+        <div class="oi-main">
+          <div class="oi-icon">${item.type === 'paket' ? '📦' : '🚬'}</div>
+          <div class="oi-details">
+            <h4>${item.name}</h4>
+            ${item.items ? `<div class="oi-sub">${item.items.map(i => `<small>• ${i}</small>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        <div class="oi-meta">
+          <div class="oi-qty">
+            <button class="oi-qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
+            <span>${item.quantity}</span>
+            <button class="oi-qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
+          </div>
+          <div class="oi-price">Rp ${(item.price * item.quantity).toLocaleString('id-ID')}</div>
+          <button class="oi-remove" onclick="removeItem(${item.id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    if (orderItems) {
+      // Keep the empty state element, but replace items
+      const emptyDiv = orderItems.querySelector('.order-empty');
+      orderItems.innerHTML = itemsHtml;
+      if (emptyDiv) orderItems.prepend(emptyDiv);
+    }
+
+    const total = cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+    const subtotal = document.getElementById('subtotalAmount');
+    const totalEl = document.getElementById('totalAmount');
+    if (subtotal) subtotal.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+    if (totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+  }
+
+  function changeQty(pid, delta) {
+    const cart = getCart();
+    const item = cart.find(i => i.id === pid);
+    if (item) {
+      item.quantity += delta;
+      if (item.quantity <= 0) { removeItem(pid); return; }
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    }
+    renderCheckout();
+  }
+
+  function removeItem(pid) {
+    const cart = getCart().filter(i => i.id !== pid);
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    renderCheckout();
+  }
+
+  window.changeQty = changeQty;
+  window.removeItem = removeItem;
+
+  // Form submission
+  document.getElementById('checkoutForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cart = getCart();
+    if (!cart.length) return;
+
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('submitBtnText');
+    if (submitBtn) submitBtn.disabled = true;
+    if (btnText) btnText.textContent = 'Memproses...';
+
+    const body = {
+      customerName: document.getElementById('customerName').value,
+      whatsappNumber: document.getElementById('whatsappNumber').value,
+      kelompok: document.getElementById('kelompok').value,
+      items: cart.map(i => ({
+        productId: i.id,
+        productName: i.name,
+        productType: i.type,
+        quantity: i.quantity,
+        price: i.price,
+        items: i.items,
+      })),
+      totalAmount: cart.reduce((s, i) => s + (i.price * i.quantity), 0),
+    };
+
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        localStorage.removeItem(CART_KEY);
+        document.getElementById('successOrderNumber').textContent = result.orderNumber;
+        document.getElementById('successDesc').textContent = result.waSent
+          ? 'Detail pesanan telah dikirim ke WhatsApp Anda.'
+          : 'Pesanan tersimpan. Admin akan menghubungi Anda.';
+        document.getElementById('successOverlay')?.classList.add('open');
+      } else {
+        window.showToast?.(result.message || 'Gagal memproses pesanan', 'error');
+      }
+    } catch {
+      window.showToast?.('Terjadi kesalahan jaringan. Coba lagi.', 'error');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+      if (btnText) btnText.textContent = 'Pesan Sekarang';
+    }
+  });
+
+  renderCheckout();
+</script>
+
+<style>
+  .checkout-page {
+    padding: 100px 0 40px;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #EEF2FF, var(--color-bg-primary) 300px);
+  }
+
+  .checkout-header {
+    margin-bottom: 36px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: 12px;
+    transition: color var(--transition-fast);
+  }
+
+  .back-link:hover { color: var(--color-accent); }
+
+  .checkout-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+
+  .checkout-header p {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+
+  .checkout-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  /* Cards */
+  .checkout-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: 28px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  .card-title-row .card-title { margin-bottom: 0; }
+
+  .card-title svg { color: var(--color-accent); }
+
+  .item-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    background: var(--color-accent-bg);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+  }
+
+  /* Order Items */
+  .order-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 40px 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .order-empty-icon { font-size: 2.5rem; opacity: 0.2; }
+
+  .oi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--color-border);
+    gap: 12px;
+  }
+
+  .oi:last-of-type { border-bottom: none; }
+
+  .oi-main { display: flex; gap: 12px; flex: 1; }
+  .oi-icon { font-size: 1.5rem; }
+  .oi-details h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 2px; }
+  .oi-sub { display: flex; flex-direction: column; gap: 1px; }
+  .oi-sub small { font-size: 0.7rem; color: var(--color-text-muted); }
+
+  .oi-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+
+  .oi-qty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+  }
+
+  .oi-qty span {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 0.85rem;
+  }
+
+  .oi-qty-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: white; border: 1px solid var(--color-border);
+    border-radius: 6px; cursor: pointer;
+    font-weight: 700; font-size: 0.95rem;
+    transition: all 0.15s;
+    color: var(--color-text-primary);
+  }
+
+  .oi-qty-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .oi-price {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    font-family: var(--font-heading);
+    min-width: 100px;
+    text-align: right;
+  }
+
+  .oi-remove {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    transition: all 0.15s;
+  }
+
+  .oi-remove:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-danger);
+  }
+
+  /* Summary */
+  .order-summary-bar {
+    border-top: 1px solid var(--color-border);
+    padding-top: 16px;
+    margin-top: 8px;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    padding: 6px 0;
+  }
+
+  .summary-total {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--color-text-primary);
+    padding-top: 12px;
+    border-top: 2px solid var(--color-border-strong);
+    margin-top: 8px;
+  }
+
+  .total-amount {
+    color: var(--color-accent);
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+  }
+
+  /* Form enhancements */
+  .input-wrap {
+    position: relative;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .form-input-icon {
+    padding-left: 42px;
+  }
+
+  .required { color: var(--color-danger); }
+
+  .form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .checkout-secure {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+  }
+
+  .checkout-secure svg { color: var(--color-success); }
+
+  .checkout-submit {
+    padding: 16px;
+    font-size: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  /* Trust Badges */
+  .trust-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .trust-badge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    transition: border-color var(--transition-fast);
+  }
+
+  .trust-badge:hover { border-color: var(--color-accent); }
+
+  .trust-icon { font-size: 1.4rem; }
+
+  .trust-badge strong {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .trust-badge small {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+
+  /* Success Modal */
+  .success-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding: 24px;
+  }
+
+  .success-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .success-modal {
+    background: white;
+    border-radius: var(--radius-2xl);
+    padding: 48px 40px;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+    animation: slideInUp 0.4s ease;
+  }
+
+  .success-icon-wrap { margin-bottom: 20px; }
+
+  .success-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #22C55E, #10B981);
+    border-radius: 50%;
+    color: white;
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.3);
+    animation: bump 0.6s ease 0.3s;
+  }
+
+  .success-modal h2 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+  }
+
+  .success-info {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+
+  .success-order-number {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--color-accent);
+    background: var(--color-accent-bg);
+    padding: 10px 20px;
+    border-radius: var(--radius-md);
+    display: inline-block;
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  .success-desc {
+    color: var(--color-text-secondary);
+    font-size: 0.88rem;
+    margin-bottom: 24px;
+  }
+
+  /* Batch closed card */
+  .batch-closed-card {
+    text-align: center;
+    padding: 60px 40px;
+    background: white;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
+    max-width: 520px;
+    margin: 0 auto;
+    animation: fadeIn 0.4s ease;
+  }
+
+  .batch-closed-icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+    opacity: 0.7;
+  }
+
+  .batch-closed-card h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: var(--color-danger);
+  }
+
+  .batch-closed-card p {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+
+  .batch-closed-hint {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    margin-bottom: 24px !important;
+  }
+
+  @media (max-width: 768px) {
+    .checkout-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .oi { flex-direction: column; align-items: flex-start; }
+    .oi-meta { width: 100%; justify-content: space-between; padding-top: 8px; }
+    .batch-closed-card { padding: 40px 24px; }
+  }
+</style>

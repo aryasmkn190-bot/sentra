@@ -1,0 +1,569 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { products } from '../../lib/schema';
+import { asc } from 'drizzle-orm';
+
+let allProducts: any[] = [];
+try {
+  allProducts = await db.select().from(products).orderBy(asc(products.sortOrder));
+} catch (error) {
+  console.error('Error fetching products:', error);
+}
+
+const paketProducts = allProducts.filter(p => p.type === 'paket');
+const satuanProducts = allProducts.filter(p => p.type === 'satuan');
+---
+
+<AdminLayout title="Kelola Produk" activeMenu="products">
+  <div class="products-header">
+    <div class="products-tabs">
+      <button class="tab-btn active" data-tab="paket">📦 Paket <span class="tab-count">{paketProducts.length}</span></button>
+      <button class="tab-btn" data-tab="satuan">🚬 Satuan <span class="tab-count">{satuanProducts.length}</span></button>
+    </div>
+    <button class="btn btn-primary btn-sm" id="addProductBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="btn-text-desktop">Tambah Produk</span>
+      <span class="btn-text-mobile">Tambah</span>
+    </button>
+  </div>
+
+  <!-- Paket Products -->
+  <div class="product-section" id="section-paket">
+    {paketProducts.length > 0 ? (
+      <>
+        <div class="table-wrapper desktop-view">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Isi Paket</th>
+                <th>Harga</th>
+                <th>Status</th>
+                <th>Urutan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paketProducts.map((product) => (
+                <tr>
+                  <td>
+                    <strong>{product.name}</strong>
+                    {product.image && <span title="Memiliki background custom">🖼️</span>}
+                    <br/><small class="text-muted">{product.description}</small>
+                  </td>
+                  <td>
+                    <div class="items-list">
+                      {(product.items as string[] || []).map((item: string) => (
+                        <small>• {item}</small>
+                      ))}
+                    </div>
+                  </td>
+                  <td class="text-accent"><strong>Rp {product.price.toLocaleString('id-ID')}</strong></td>
+                  <td>
+                    <span class={`badge ${product.isActive ? 'badge-success' : 'badge-danger'}`}>
+                      {product.isActive ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </td>
+                  <td>{product.sortOrder}</td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="btn btn-secondary btn-sm edit-product-btn" data-product={JSON.stringify(product)}>✏️</button>
+                      <button class="btn btn-danger btn-sm delete-product-btn" data-id={product.id} data-name={product.name}>🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="mobile-view">
+          {paketProducts.map((product) => (
+            <div class="product-card">
+              <div class="pc-header">
+                <div class="pc-info">
+                  <strong>
+                    {product.name} {product.image && <span title="Memiliki background custom">🖼️</span>}
+                  </strong>
+                  <small class="text-muted">{product.description}</small>
+                </div>
+                <div class="pc-actions">
+                  <span class={`badge ${product.isActive ? 'badge-success' : 'badge-danger'}`}>
+                    {product.isActive ? 'Aktif' : 'Off'}
+                  </span>
+                </div>
+              </div>
+              <div class="pc-items">
+                {(product.items as string[] || []).map((item: string) => (
+                  <small>• {item}</small>
+                ))}
+              </div>
+              <div class="pc-footer">
+                <span class="pc-price">Rp {product.price.toLocaleString('id-ID')}</span>
+                <div class="pc-btns">
+                  <button class="icon-btn edit-product-btn" data-product={JSON.stringify(product)}>✏️</button>
+                  <button class="icon-btn icon-btn-danger delete-product-btn" data-id={product.id} data-name={product.name}>🗑️</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div class="empty-card"><p>📦 Belum ada produk paket</p></div>
+    )}
+  </div>
+
+  <!-- Satuan Products -->
+  <div class="product-section" id="section-satuan" style="display:none;">
+    {satuanProducts.length > 0 ? (
+      <>
+        <div class="table-wrapper desktop-view">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Harga</th>
+                <th>Status</th>
+                <th>Urutan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {satuanProducts.map((product) => (
+                <tr>
+                  <td><strong>{product.name}</strong></td>
+                  <td class="text-accent"><strong>Rp {product.price.toLocaleString('id-ID')}</strong></td>
+                  <td>
+                    <span class={`badge ${product.isActive ? 'badge-success' : 'badge-danger'}`}>
+                      {product.isActive ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </td>
+                  <td>{product.sortOrder}</td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="btn btn-secondary btn-sm edit-product-btn" data-product={JSON.stringify(product)}>✏️</button>
+                      <button class="btn btn-danger btn-sm delete-product-btn" data-id={product.id} data-name={product.name}>🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="mobile-view">
+          {satuanProducts.map((product) => (
+            <div class="product-card product-card-simple">
+              <div class="pc-row">
+                <div class="pc-info">
+                  <strong>{product.name}</strong>
+                  <span class="pc-price-inline">Rp {product.price.toLocaleString('id-ID')}</span>
+                </div>
+                <div class="pc-right">
+                  <span class={`badge ${product.isActive ? 'badge-success' : 'badge-danger'}`}>
+                    {product.isActive ? 'Aktif' : 'Off'}
+                  </span>
+                  <div class="pc-btns">
+                    <button class="icon-btn edit-product-btn" data-product={JSON.stringify(product)}>✏️</button>
+                    <button class="icon-btn icon-btn-danger delete-product-btn" data-id={product.id} data-name={product.name}>🗑️</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div class="empty-card"><p>🚬 Belum ada produk satuan</p></div>
+    )}
+  </div>
+
+  <!-- Product Modal -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Tambah Produk</h3>
+        <button class="modal-close" id="modalClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="productForm">
+        <input type="hidden" id="productId" />
+        <div class="form-group">
+          <label class="form-label">Nama Produk</label>
+          <input type="text" id="productName" class="form-input" placeholder="Nama produk" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipe</label>
+          <select id="productType" class="form-select" required>
+            <option value="paket">Paket</option>
+            <option value="satuan">Satuan</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Harga (Rp)</label>
+          <input type="number" id="productPrice" class="form-input" placeholder="50000" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deskripsi</label>
+          <input type="text" id="productDescription" class="form-input" placeholder="Deskripsi singkat" />
+        </div>
+        <div class="form-group" id="itemsGroup">
+          <label class="form-label">Isi Paket (satu item per baris)</label>
+          <textarea id="productItems" class="form-input form-textarea" rows="4" placeholder="INDOMIE GORENG&#10;GULA PASIR 1/4&#10;..."></textarea>
+        </div>
+        <div class="form-group" id="imageGroup">
+          <label class="form-label">Background Image URL (Opsional, khusus Paket)</label>
+          <input type="url" id="productImage" class="form-input" placeholder="https://example.com/image.jpg" />
+          <small class="form-hint" style="color:var(--color-text-muted); font-size:0.75rem; margin-top:4px; display:block;">Kosongkan untuk menggunakan warna gradasi bawaan.</small>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Urutan</label>
+            <input type="number" id="productSortOrder" class="form-input" value="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="productIsActive" class="form-select">
+              <option value="true">Aktif</option>
+              <option value="false">Nonaktif</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg">💾 Simpan</button>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // Tabs
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.product-section').forEach(s => s.style.display = 'none');
+      document.getElementById(`section-${btn.dataset.tab}`).style.display = 'block';
+    });
+  });
+
+  // Modal
+  const modal = document.getElementById('productModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const form = document.getElementById('productForm');
+  const typeSelect = document.getElementById('productType');
+  const itemsGroup = document.getElementById('itemsGroup');
+
+  function openModal() { modal.classList.add('open'); document.body.style.overflow='hidden'; }
+  function closeModal() { modal.classList.remove('open'); document.body.style.overflow=''; form.reset(); document.getElementById('productId').value = ''; }
+
+  document.getElementById('addProductBtn')?.addEventListener('click', () => {
+    modalTitle.textContent = 'Tambah Produk';
+    document.getElementById('productId').value = '';
+    form.reset();
+    openModal();
+  });
+
+  document.getElementById('modalClose')?.addEventListener('click', closeModal);
+  modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+  typeSelect?.addEventListener('change', () => {
+    const isPaket = typeSelect.value === 'paket';
+    itemsGroup.style.display = isPaket ? 'block' : 'none';
+    const imgGroup = document.getElementById('imageGroup');
+    if (imgGroup) imgGroup.style.display = isPaket ? 'block' : 'none';
+  });
+
+  document.querySelectorAll('.edit-product-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const product = JSON.parse(btn.dataset.product);
+      modalTitle.textContent = 'Edit Produk';
+      document.getElementById('productId').value = product.id;
+      document.getElementById('productName').value = product.name;
+      document.getElementById('productType').value = product.type;
+      document.getElementById('productPrice').value = product.price;
+      document.getElementById('productDescription').value = product.description || '';
+      document.getElementById('productImage').value = product.image || '';
+      document.getElementById('productItems').value = (product.items || []).join('\n');
+      document.getElementById('productSortOrder').value = product.sortOrder || 0;
+      document.getElementById('productIsActive').value = String(product.isActive);
+      const isPaket = product.type === 'paket';
+      itemsGroup.style.display = isPaket ? 'block' : 'none';
+      const imgGroup = document.getElementById('imageGroup');
+      if (imgGroup) imgGroup.style.display = isPaket ? 'block' : 'none';
+      openModal();
+    });
+  });
+
+  document.querySelectorAll('.delete-product-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Hapus produk "${btn.dataset.name}"?`)) return;
+      try {
+        const res = await fetch(`/api/products?id=${btn.dataset.id}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) { window.showToast?.('Produk dihapus'); location.reload(); }
+        else { window.showToast?.('Gagal menghapus produk', 'error'); }
+      } catch { window.showToast?.('Terjadi kesalahan', 'error'); }
+    });
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const productId = document.getElementById('productId').value;
+    const isEdit = !!productId;
+    const data = {
+      id: isEdit ? parseInt(productId) : undefined,
+      name: document.getElementById('productName').value,
+      type: document.getElementById('productType').value,
+      price: document.getElementById('productPrice').value,
+      description: document.getElementById('productDescription').value,
+      image: document.getElementById('productImage').value,
+      items: document.getElementById('productType').value === 'paket'
+        ? document.getElementById('productItems').value.split('\n').filter(i => i.trim()) : null,
+      sortOrder: document.getElementById('productSortOrder').value,
+      isActive: document.getElementById('productIsActive').value === 'true',
+    };
+    try {
+      const res = await fetch('/api/products', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (result.success) { window.showToast?.(isEdit ? 'Produk diperbarui' : 'Produk ditambahkan'); location.reload(); }
+      else { window.showToast?.('Gagal menyimpan produk', 'error'); }
+    } catch { window.showToast?.('Terjadi kesalahan', 'error'); }
+  });
+</script>
+
+<style>
+  .products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+
+  .products-tabs { display: flex; gap: 8px; }
+
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    background: white;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: var(--shadow-xs);
+  }
+  .tab-btn:hover { border-color: var(--color-border-hover); }
+  .tab-btn.active {
+    background: var(--gradient-primary);
+    border-color: var(--color-accent);
+    color: white;
+    box-shadow: var(--shadow-accent);
+  }
+  .tab-count {
+    background: rgba(255,255,255,0.2);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+  }
+  .tab-btn:not(.active) .tab-count {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-muted);
+  }
+
+  .btn-text-mobile { display: none; }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-width: 250px;
+  }
+  .items-list small { font-size: 0.75rem; color: var(--color-text-muted); }
+
+  .action-btns { display: flex; gap: 6px; }
+
+  /* Mobile view */
+  .mobile-view { display: none; }
+
+  .product-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+  .product-card:hover { border-color: var(--color-border-hover); }
+
+  .pc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .pc-info { display: flex; flex-direction: column; gap: 2px; }
+  .pc-info strong { font-size: 0.9rem; }
+  .pc-info small { font-size: 0.75rem; }
+
+  .pc-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 10px;
+  }
+  .pc-items small { font-size: 0.75rem; color: var(--color-text-muted); }
+
+  .pc-footer, .pc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .pc-price {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--color-accent);
+  }
+
+  .pc-price-inline {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--color-accent);
+  }
+
+  .pc-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pc-btns { display: flex; gap: 6px; }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--color-accent); }
+  .icon-btn-danger:hover { border-color: var(--color-danger); background: rgba(239,68,68,0.06); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 16px;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal-content {
+    max-width: 500px;
+    width: 100%;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-xl);
+    animation: slideInUp 0.3s ease;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .modal-header h3 { font-size: 1.1rem; }
+
+  .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .modal-close:hover { background: rgba(239,68,68,0.08); color: var(--color-danger); }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .form-textarea { resize: vertical; min-height: 80px; font-family: var(--font-body); }
+
+  .empty-card {
+    text-align: center;
+    padding: 40px 24px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-muted);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .desktop-view { display: none; }
+    .mobile-view { display: block; }
+
+    .btn-text-desktop { display: none; }
+    .btn-text-mobile { display: inline; }
+
+    .products-header { flex-wrap: wrap; }
+    .products-tabs { flex: 1; }
+
+    .modal-content {
+      padding: 20px;
+      margin: 0;
+      max-height: 85vh;
+      border-radius: var(--radius-xl);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .modal-overlay { padding: 8px; }
+    .modal-content { padding: 16px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>

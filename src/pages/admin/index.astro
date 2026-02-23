@@ -1,0 +1,370 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { orders, products } from '../../lib/schema';
+import { eq, desc, sql, count } from 'drizzle-orm';
+
+let stats = {
+  totalOrders: 0,
+  todayOrders: 0,
+  totalProducts: 0,
+  totalRevenue: 0,
+};
+
+let recentOrders: any[] = [];
+
+try {
+  const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  const allProducts = await db.select().from(products);
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  stats.totalOrders = allOrders.length;
+  stats.todayOrders = allOrders.filter(o => new Date(o.createdAt) >= today).length;
+  stats.totalProducts = allProducts.length;
+  stats.totalRevenue = allOrders
+    .filter(o => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  
+  recentOrders = allOrders.slice(0, 10);
+} catch (error) {
+  console.error('Dashboard error:', error);
+}
+
+const statusColors: Record<string, string> = {
+  pending: 'warning',
+  confirmed: 'info',
+  processing: 'info',
+  completed: 'success',
+  cancelled: 'danger',
+};
+
+const statusLabels: Record<string, string> = {
+  pending: 'Menunggu',
+  confirmed: 'Dikonfirmasi',
+  processing: 'Diproses',
+  completed: 'Selesai',
+  cancelled: 'Dibatalkan',
+};
+---
+
+<AdminLayout title="Dashboard" activeMenu="dashboard">
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6, #60A5FA);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{stats.totalOrders}</span>
+        <span class="stat-label">Total Pesanan</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{stats.todayOrders}</span>
+        <span class="stat-label">Hari Ini</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #22C55E, #4ADE80);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{stats.totalProducts}</span>
+        <span class="stat-label">Produk Aktif</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value stat-value-sm">Rp {stats.totalRevenue.toLocaleString('id-ID')}</span>
+        <span class="stat-label">Pendapatan</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions (Mobile) -->
+  <div class="quick-actions">
+    <a href="/admin/products" class="quick-action-btn">
+      <span>➕</span> Tambah Produk
+    </a>
+    <a href="/admin/orders" class="quick-action-btn">
+      <span>📋</span> Lihat Pesanan
+    </a>
+  </div>
+
+  <!-- Recent Orders -->
+  <div class="dashboard-section">
+    <div class="section-header-row">
+      <h2>Pesanan Terbaru</h2>
+      <a href="/admin/orders" class="btn btn-secondary btn-sm">Lihat Semua →</a>
+    </div>
+    
+    {recentOrders.length > 0 ? (
+      <>
+        {/* Desktop Table */}
+        <div class="table-wrapper desktop-table">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>No. Order</th>
+                <th>Pelanggan</th>
+                <th>Kelompok</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Waktu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.map((order) => (
+                <tr>
+                  <td><code>{order.orderNumber}</code></td>
+                  <td>
+                    <strong>{order.customerName}</strong>
+                    <br/><small class="text-muted">{order.whatsappNumber}</small>
+                  </td>
+                  <td><span class="badge badge-neutral">{order.kelompok}</span></td>
+                  <td class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></td>
+                  <td>
+                    <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
+                      {statusLabels[order.status] || order.status}
+                    </span>
+                  </td>
+                  <td class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div class="mobile-orders-list">
+          {recentOrders.map((order) => (
+            <div class="mobile-order-card">
+              <div class="moc-top">
+                <div class="moc-info">
+                  <strong>{order.customerName}</strong>
+                  <small class="text-muted">{order.whatsappNumber}</small>
+                </div>
+                <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
+                  {statusLabels[order.status] || order.status}
+                </span>
+              </div>
+              <div class="moc-bottom">
+                <div class="moc-detail">
+                  <code>{order.orderNumber}</code>
+                  <span class="badge badge-neutral">{order.kelompok}</span>
+                </div>
+                <div class="moc-meta">
+                  <span class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></span>
+                  <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</small>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div class="empty-state-card">
+        <div class="empty-icon">📦</div>
+        <p>Belum ada pesanan masuk</p>
+        <small>Pesanan dari pelanggan akan muncul di sini</small>
+      </div>
+    )}
+  </div>
+</AdminLayout>
+
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    transition: all 0.25s ease;
+    animation: fadeIn 0.4s ease forwards;
+  }
+
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.1s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+  .stat-card:nth-child(4) { animation-delay: 0.2s; }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-lg);
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .stat-info { display: flex; flex-direction: column; min-width: 0; }
+
+  .stat-value {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+  }
+
+  .stat-value-sm { font-size: 1.1rem; }
+
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .quick-actions {
+    display: none;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .quick-action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-decoration: none;
+    transition: all 0.15s;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .quick-action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .dashboard-section {
+    animation: fadeIn 0.4s ease 0.25s forwards;
+    opacity: 0;
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-header-row h2 { font-size: 1.1rem; }
+
+  code {
+    font-size: 0.78rem;
+    background: var(--color-bg-tertiary);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  .empty-state-card {
+    text-align: center;
+    padding: 48px 24px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+  .empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 12px; }
+  .empty-state-card p { font-weight: 600; margin-bottom: 4px; }
+  .empty-state-card small { color: var(--color-text-muted); font-size: 0.85rem; }
+
+  /* Mobile order cards - hidden on desktop */
+  .mobile-orders-list { display: none; }
+
+  .mobile-order-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .mobile-order-card:hover { border-color: var(--color-border-hover); }
+
+  .moc-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .moc-info { display: flex; flex-direction: column; gap: 2px; }
+  .moc-info strong { font-size: 0.9rem; }
+  .moc-info small { font-size: 0.75rem; }
+
+  .moc-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .moc-detail { display: flex; align-items: center; gap: 8px; }
+  .moc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .moc-meta small { font-size: 0.7rem; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1024px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      padding: 14px;
+      gap: 10px;
+    }
+
+    .stat-icon { width: 42px; height: 42px; }
+    .stat-icon svg { width: 18px; height: 18px; }
+    .stat-value { font-size: 1.2rem; }
+    .stat-value-sm { font-size: 0.95rem; }
+    .stat-label { font-size: 0.7rem; }
+
+    .quick-actions { display: flex; }
+
+    .desktop-table { display: none; }
+    .mobile-orders-list { display: block; }
+
+    .section-header-row h2 { font-size: 1rem; }
+  }
+
+  @media (max-width: 380px) {
+    .stat-card { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+  }
+</style>

@@ -1,0 +1,117 @@
+---
+
+---
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="logo-mark"><span>S</span></div>
+          <span class="logo-text">Sentra</span>
+        </div>
+        <p class="footer-desc">Warung kelontong online terpercaya. Menyediakan kebutuhan harian dengan harga terjangkau.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Menu</h4>
+        <a href="/">Beranda</a>
+        <a href="/#paket">Produk Paket</a>
+        <a href="/#satuan">Produk Satuan</a>
+        <a href="/checkout">Checkout</a>
+      </div>
+      <div class="footer-links">
+        <h4>Informasi</h4>
+        <a href="/admin/login">Admin</a>
+        <span class="footer-info">📍 Warung Sentra</span>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2024 Sentra. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--color-bg-dark);
+    color: rgba(255,255,255,0.8);
+    padding: var(--space-3xl) 0 var(--space-lg);
+  }
+
+  .footer-inner {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: var(--space-2xl);
+    padding-bottom: var(--space-2xl);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: var(--space-md);
+  }
+
+  .footer .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: var(--gradient-primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.1rem;
+  }
+
+  .footer .logo-text {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: white;
+  }
+
+  .footer .logo-dk { color: #818CF8; }
+
+  .footer-desc {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    max-width: 300px;
+  }
+
+  .footer-links h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: var(--space-md);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .footer-links a, .footer-info {
+    display: block;
+    color: rgba(255,255,255,0.45);
+    font-size: 0.85rem;
+    padding: 4px 0;
+    transition: color var(--transition-fast);
+  }
+
+  .footer-links a:hover { color: rgba(255,255,255,0.9); }
+
+  .footer-bottom {
+    padding-top: var(--space-lg);
+    text-align: center;
+  }
+
+  .footer-bottom p {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.3);
+  }
+
+  @media (max-width: 768px) {
+    .footer-inner { grid-template-columns: 1fr; gap: var(--space-xl); }
+  }
+</style>

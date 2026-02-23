@@ -1,0 +1,1228 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { db } from '../lib/db';
+import { products, settings } from '../lib/schema';
+import { eq, asc } from 'drizzle-orm';
+
+let paketProducts: any[] = [];
+let satuanProducts: any[] = [];
+
+try {
+  const allProducts = await db.select().from(products).where(eq(products.isActive, true)).orderBy(asc(products.sortOrder));
+  paketProducts = allProducts.filter(p => p.type === 'paket');
+  satuanProducts = allProducts.filter(p => p.type === 'satuan');
+} catch (error) {
+  console.error('Error fetching products:', error);
+}
+
+// Fetch batch settings
+let batchInfo = { active: false, name: '', start: '', end: '', status: 'inactive' as string };
+try {
+  const allSettings = await db.select().from(settings);
+  const sMap: Record<string, string> = {};
+  allSettings.forEach(s => { sMap[s.key] = s.value; });
+
+  batchInfo.active = sMap.batch_active === 'true';
+  batchInfo.name = sMap.batch_name || '';
+  batchInfo.start = sMap.batch_start || '';
+  batchInfo.end = sMap.batch_end || '';
+
+  if (batchInfo.active && batchInfo.start && batchInfo.end) {
+    const now = new Date();
+    const start = new Date(batchInfo.start);
+    const end = new Date(batchInfo.end);
+    if (now < start) batchInfo.status = 'upcoming';
+    else if (now >= start && now <= end) batchInfo.status = 'open';
+    else batchInfo.status = 'closed';
+  }
+} catch (e) {
+  console.error('Error fetching batch settings:', e);
+}
+
+const isBatchOpen = batchInfo.status === 'open';
+const isBatchEnabled = batchInfo.active;
+
+function formatBatchDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+---
+
+<BaseLayout title="Sentra — Toko Online">
+  <Header />
+
+  <!-- Batch Info Banner -->
+  {isBatchEnabled && (
+    <div class={`batch-banner batch-banner-${batchInfo.status}`} id="batchBanner"
+         data-start={batchInfo.start} data-end={batchInfo.end} data-status={batchInfo.status}>
+      <div class="batch-banner-inner container">
+        {batchInfo.status === 'open' && (
+          <div class="batch-banner-content">
+            <div class="batch-banner-info">
+              <div class="batch-banner-title-row">
+                <span class="batch-banner-dot"></span>
+                <strong class="batch-banner-title">🛒 {batchInfo.name || 'Pembelian Dibuka!'}</strong>
+              </div>
+              <span class="batch-banner-date">
+                {formatBatchDate(batchInfo.start)} — {formatBatchDate(batchInfo.end)}
+              </span>
+            </div>
+            <div class="batch-banner-countdown" id="batchBannerCountdown">⏳ Menghitung...</div>
+          </div>
+        )}
+        {batchInfo.status === 'upcoming' && (
+          <div class="batch-banner-content">
+            <div class="batch-banner-info">
+              <div class="batch-banner-title-row">
+                <span class="batch-banner-dot batch-banner-dot-upcoming"></span>
+                <strong class="batch-banner-title">⏰ {batchInfo.name || 'Batch Akan Datang'}</strong>
+              </div>
+              <span class="batch-banner-date">
+                Dibuka: {formatBatchDate(batchInfo.start)}
+              </span>
+            </div>
+            <div class="batch-banner-countdown" id="batchBannerCountdown">⏳ Menghitung...</div>
+          </div>
+        )}
+        {batchInfo.status === 'closed' && (
+          <div class="batch-banner-content batch-banner-content-center">
+            <div class="batch-banner-info">
+              <strong class="batch-banner-title">🔒 Pembelian Ditutup</strong>
+              <span class="batch-banner-date">Batch terakhir sudah berakhir. Tunggu batch selanjutnya.</span>
+            </div>
+          </div>
+        )}
+        {batchInfo.status === 'inactive' && (
+          <div class="batch-banner-content batch-banner-content-center">
+            <div class="batch-banner-info">
+              <strong class="batch-banner-title">🔒 Pembelian Belum Dibuka</strong>
+              <span class="batch-banner-date">Silakan tunggu pengumuman batch selanjutnya.</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+  
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="hero-blob hero-blob-1"></div>
+      <div class="hero-blob hero-blob-2"></div>
+      <div class="hero-blob hero-blob-3"></div>
+      <div class="hero-grid"></div>
+    </div>
+    <div class="container hero-content">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Partner Kebutuhan Harian Terpercaya
+      </div>
+      <h1 class="hero-title">
+        Belanja di <span class="hero-brand">Sentra</span>
+      </h1>
+      <p class="hero-subtitle">
+        Kebutuhan harian Anda tersedia lengkap. Pilih <strong>paket hemat</strong> atau beli <strong>satuan</strong> — semua mudah dan praktis.
+      </p>
+      <div class="hero-actions">
+        <a href="#paket" class="btn btn-primary btn-lg">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Lihat Produk
+        </a>
+        <a href="#satuan" class="btn btn-outline btn-lg">
+          Produk Satuan →
+        </a>
+      </div>
+      <div class="hero-stats-row">
+        <div class="hero-stat-chip"><strong>{paketProducts.length}</strong> Paket</div>
+        <div class="hero-stat-chip"><strong>{satuanProducts.length}</strong> Satuan</div>
+        <div class="hero-stat-chip"><strong>6</strong> Kelompok</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Paket Section -->
+  <section class="section" id="paket">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <span class="section-chip">📦 Paket Hemat</span>
+        <h2 class="section-title">Pilih Paket Favoritmu</h2>
+        <p class="section-subtitle">Dapatkan berbagai kebutuhan dalam satu paket dengan harga lebih hemat</p>
+      </div>
+      
+      {paketProducts.length > 0 ? (
+        <div class="paket-grid">
+          {paketProducts.map((product, index) => {
+            const gradients = [
+              'linear-gradient(135deg, #667eea, #764ba2)',
+              'linear-gradient(135deg, #f093fb, #f5576c)',
+              'linear-gradient(135deg, #4facfe, #00f2fe)',
+            ];
+            const lightBgs = [
+              'rgba(102, 126, 234, 0.06)',
+              'rgba(245, 87, 108, 0.06)',
+              'rgba(79, 172, 254, 0.06)',
+            ];
+            const accentColors = ['#667eea', '#f5576c', '#4facfe'];
+            const gIndex = index % 3;
+            return (
+              <div class="paket-card" data-animate style={`--paket-gradient: ${gradients[gIndex]}; --paket-bg: ${lightBgs[gIndex]}; --paket-accent: ${accentColors[gIndex]}`}>
+                <div class="paket-card-top" style={product.image ? `background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url('${product.image}') center/cover no-repeat;` : `background: ${gradients[gIndex]}`}>
+                  <div class="paket-card-badge">{product.name}</div>
+                  <div class="paket-card-price">
+                    <span class="paket-price-label">Mulai dari</span>
+                    <div class="paket-price-row">
+                      <span class="paket-price-rp">Rp</span>
+                      <span class="paket-price-value">{product.price.toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
+                  <p class="paket-card-desc">{product.description}</p>
+                </div>
+                <div class="paket-card-body">
+                  <div class="paket-items-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    {(product.items as string[] || []).length} item dalam paket
+                  </div>
+                  <ul class="paket-items">
+                    {(product.items as string[] || []).map((item: string) => (
+                      <li>
+                        <span class="paket-item-dot" style={`background: ${accentColors[gIndex]}`}></span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <button 
+                    class="btn btn-full paket-buy-btn add-to-cart-btn"
+                    data-id={product.id}
+                    data-name={product.name}
+                    data-type="paket"
+                    data-price={product.price}
+                    data-items={JSON.stringify(product.items)}
+                    style={`background: ${gradients[gIndex]}`}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    Tambah ke Keranjang
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div class="empty-state"><p>📦 Belum ada produk paket.</p></div>
+      )}
+    </div>
+  </section>
+
+  <!-- Satuan Section -->
+  <section class="section section-tinted" id="satuan">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <span class="section-chip section-chip-warm">🚬 Produk Satuan</span>
+        <h2 class="section-title">Rokok Satuan</h2>
+        <p class="section-subtitle">Beli per satuan — langsung tambahkan ke keranjang</p>
+      </div>
+      
+      {satuanProducts.length > 0 ? (
+        <div class="satuan-grid">
+          {satuanProducts.map((product, index) => (
+            <div class="satuan-card" data-animate data-product-id={product.id} style={`animation-delay: ${index * 50}ms`}>
+              <div class="satuan-left">
+                <div class="satuan-avatar">🚬</div>
+                <div>
+                  <h4 class="satuan-name">{product.name}</h4>
+                  <div class="satuan-price">Rp {product.price.toLocaleString('id-ID')}</div>
+                </div>
+              </div>
+              <div class="satuan-right">
+                {/* Add button - shown when qty=0 */}
+                <button 
+                  class="satuan-add-btn satuan-initial-btn"
+                  data-id={product.id}
+                  data-name={product.name}
+                  data-type="satuan"
+                  data-price={product.price}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                {/* Quantity counter - shown when qty>=1 */}
+                <div class="satuan-counter" style="display:none;">
+                  <button class="sc-btn sc-minus" data-id={product.id}>−</button>
+                  <span class="sc-qty">0</span>
+                  <button class="sc-btn sc-plus" data-id={product.id} data-name={product.name} data-type="satuan" data-price={product.price}>+</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-state"><p>🚬 Belum ada produk satuan.</p></div>
+      )}
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-banner" data-animate>
+        <div class="cta-left">
+          <h2>Siap checkout? 🛒</h2>
+          <p>Lihat keranjang dan selesaikan pesananmu sekarang.</p>
+        </div>
+        <a href="/checkout" class="btn btn-primary btn-lg">Checkout Sekarang →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cart Sidebar -->
+  <div class="cart-overlay" id="cartOverlay"></div>
+  <aside class="cart-sidebar" id="cartSidebar">
+    <div class="cart-header">
+      <h3>🛒 Keranjang</h3>
+      <button class="cart-close-btn" id="cartCloseBtn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="cart-body" id="cartBody">
+      <div class="cart-empty-state" id="cartEmpty">
+        <div class="cart-empty-icon">🛒</div>
+        <p><strong>Keranjang kosong</strong></p>
+        <span>Tambahkan produk untuk mulai belanja</span>
+      </div>
+      <div class="cart-items-list" id="cartItems"></div>
+    </div>
+    <div class="cart-footer-bar" id="cartFooter" style="display:none;">
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span class="cart-total-amount" id="cartTotalPrice">Rp 0</span>
+      </div>
+      <a href="/checkout" class="btn btn-primary btn-full btn-lg">Checkout →</a>
+    </div>
+  </aside>
+
+  <Footer />
+</BaseLayout>
+
+<script>
+  const CART_KEY = 'swasembada_cart';
+  function getCart() { try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch { return []; } }
+  function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartUI(); }
+
+  function addToCart(product) {
+    const cart = getCart();
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) existing.quantity += 1;
+    else cart.push({ ...product, quantity: 1 });
+    saveCart(cart);
+    const badge = document.getElementById('cartBadge');
+    if (badge) { badge.classList.remove('bump'); void badge.offsetWidth; badge.classList.add('bump'); }
+    window.showToast?.(`${product.name} ditambahkan!`);
+  }
+
+  function removeFromCart(pid) { saveCart(getCart().filter(i => i.id !== pid)); }
+  function updateQuantity(pid, d) {
+    const cart = getCart();
+    const item = cart.find(i => i.id === pid);
+    if (item) { item.quantity += d; if (item.quantity <= 0) { removeFromCart(pid); return; } }
+    saveCart(cart);
+  }
+
+  function updateCartUI() {
+    const cart = getCart();
+    const badge = document.getElementById('cartBadge');
+    const items = document.getElementById('cartItems');
+    const empty = document.getElementById('cartEmpty');
+    const footer = document.getElementById('cartFooter');
+    const total = document.getElementById('cartTotalPrice');
+
+    if (badge) badge.textContent = cart.reduce((s, i) => s + i.quantity, 0);
+    if (!cart.length) { if(empty) empty.style.display='flex'; if(items) items.innerHTML=''; if(footer) footer.style.display='none'; return; }
+    if(empty) empty.style.display='none';
+    if(footer) footer.style.display='block';
+
+    if (items) items.innerHTML = cart.map(i => `
+      <div class="ci">
+        <div class="ci-info">
+          <span class="ci-icon">${i.type==='paket'?'📦':'🚬'}</span>
+          <div><h4 class="ci-name">${i.name}</h4><span class="ci-price">Rp ${i.price.toLocaleString('id-ID')}</span>
+          ${i.items?`<div class="ci-sub">${i.items.map(x=>`<small>• ${x}</small>`).join('')}</div>`:''}</div>
+        </div>
+        <div class="ci-ctrl">
+          <button class="ci-qty-btn" onclick="updateQuantity(${i.id},-1)">−</button>
+          <span class="ci-qty">${i.quantity}</span>
+          <button class="ci-qty-btn" onclick="updateQuantity(${i.id},1)">+</button>
+          <button class="ci-del" onclick="removeFromCart(${i.id})">🗑️</button>
+        </div>
+      </div>`).join('');
+
+    if (total) total.textContent = `Rp ${cart.reduce((s,i)=>s+i.price*i.quantity,0).toLocaleString('id-ID')}`;
+  }
+
+  window.updateQuantity = updateQuantity;
+  window.removeFromCart = removeFromCart;
+
+  function openCart() { document.getElementById('cartSidebar')?.classList.add('open'); document.getElementById('cartOverlay')?.classList.add('open'); document.body.style.overflow='hidden'; }
+  function closeCart() { document.getElementById('cartSidebar')?.classList.remove('open'); document.getElementById('cartOverlay')?.classList.remove('open'); document.body.style.overflow=''; }
+
+  document.getElementById('cartToggleBtn')?.addEventListener('click', openCart);
+  document.getElementById('cartCloseBtn')?.addEventListener('click', closeCart);
+  document.getElementById('cartOverlay')?.addEventListener('click', closeCart);
+
+  // Paket add-to-cart buttons
+  document.querySelectorAll('.paket-buy-btn.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      addToCart({ id: +btn.dataset.id, name: btn.dataset.name, type: btn.dataset.type, price: +btn.dataset.price, items: btn.dataset.items ? JSON.parse(btn.dataset.items) : undefined });
+      btn.style.transform = 'scale(0.95)';
+      setTimeout(() => btn.style.transform = '', 150);
+    });
+  });
+
+  // Satuan — initial "+" button
+  document.querySelectorAll('.satuan-initial-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = +btn.dataset.id;
+      addToCart({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price });
+      updateSatuanCounters();
+    });
+  });
+
+  // Satuan — counter "+" button
+  document.querySelectorAll('.sc-plus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = +btn.dataset.id;
+      addToCart({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price });
+      updateSatuanCounters();
+    });
+  });
+
+  // Satuan — counter "−" button
+  document.querySelectorAll('.sc-minus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      updateQuantity(+btn.dataset.id, -1);
+      updateSatuanCounters();
+    });
+  });
+
+  function updateSatuanCounters() {
+    const cart = getCart();
+    document.querySelectorAll('.satuan-card[data-product-id]').forEach(card => {
+      const pid = +card.dataset.productId;
+      const item = cart.find(i => i.id === pid);
+      const qty = item ? item.quantity : 0;
+      const addBtn = card.querySelector('.satuan-initial-btn');
+      const counter = card.querySelector('.satuan-counter');
+      const qtyEl = card.querySelector('.sc-qty');
+
+      if (qty > 0) {
+        if (addBtn) addBtn.style.display = 'none';
+        if (counter) counter.style.display = 'flex';
+        if (qtyEl) qtyEl.textContent = qty;
+      } else {
+        if (addBtn) addBtn.style.display = 'flex';
+        if (counter) counter.style.display = 'none';
+      }
+    });
+  }
+
+  // Override addToCart to not show toast for satuan (counter already shows feedback)
+  const _origAddToCart = addToCart;
+  addToCart = function(product) {
+    const cart = getCart();
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) existing.quantity += 1;
+    else cart.push({ ...product, quantity: 1 });
+    saveCart(cart);
+    const badge = document.getElementById('cartBadge');
+    if (badge) { badge.classList.remove('bump'); void badge.offsetWidth; badge.classList.add('bump'); }
+    if (product.type !== 'satuan') window.showToast?.(`${product.name} ditambahkan!`);
+  };
+
+  // Initialize counters on load
+  updateSatuanCounters();
+
+  const obs = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); }), { threshold: 0.08 });
+  document.querySelectorAll('[data-animate]').forEach(el => obs.observe(el));
+
+  updateCartUI();
+
+  // ===== BATCH COUNTDOWN =====
+  const batchBanner = document.getElementById('batchBanner');
+  if (batchBanner) {
+    const batchStart = batchBanner.dataset.start ? new Date(batchBanner.dataset.start) : null;
+    const batchEnd = batchBanner.dataset.end ? new Date(batchBanner.dataset.end) : null;
+    const batchStatus = batchBanner.dataset.status;
+
+    function updateBatchCountdown() {
+      const el = document.getElementById('batchBannerCountdown');
+      if (!el || !batchStart || !batchEnd) return;
+
+      const now = new Date();
+      let diff = 0;
+      let prefix = '';
+
+      if (batchStatus === 'upcoming') {
+        diff = batchStart.getTime() - now.getTime();
+        prefix = 'Dibuka dalam ';
+      } else if (batchStatus === 'open') {
+        diff = batchEnd.getTime() - now.getTime();
+        prefix = 'Ditutup dalam ';
+      }
+
+      if (diff <= 0) {
+        el.textContent = batchStatus === 'upcoming' ? '🎉 Sudah dibuka!' : '🔒 Sudah ditutup';
+        // Reload after a short delay to update page state
+        setTimeout(() => window.location.reload(), 2000);
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      let parts = [];
+      if (days > 0) parts.push(`${days} hari`);
+      if (hours > 0) parts.push(`${hours} jam`);
+      parts.push(`${mins} menit`);
+      parts.push(`${secs} detik`);
+
+      el.textContent = prefix + parts.join(' ');
+    }
+
+    updateBatchCountdown();
+    setInterval(updateBatchCountdown, 1000);
+  }
+</script>
+
+<style>
+  /* ===== HERO ===== */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 100px 0 60px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #EEF2FF 0%, var(--color-bg-primary) 100%);
+  }
+
+  .hero-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+  .hero-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+  }
+
+  .hero-blob-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(102, 126, 234, 0.25), transparent 70%);
+    top: -10%; right: -5%;
+    animation: float 8s ease-in-out infinite;
+  }
+
+  .hero-blob-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(245, 87, 108, 0.15), transparent 70%);
+    bottom: 10%; left: -8%;
+    animation: float 10s ease-in-out infinite reverse;
+  }
+
+  .hero-blob-3 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(79, 172, 254, 0.2), transparent 70%);
+    top: 50%; left: 50%;
+    animation: float 12s ease-in-out infinite 2s;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79, 70, 229, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79, 70, 229, 0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(ellipse 70% 50% at center, black, transparent);
+  }
+
+  .hero-content {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    animation: fadeIn 0.8s ease;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .hero-badge-dot {
+    width: 8px; height: 8px;
+    background: var(--color-success);
+    border-radius: 50%;
+    animation: pulse-glow 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 6vw, 4.2rem);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    color: var(--color-text-primary);
+  }
+
+  .hero-brand { display: block; }
+
+  .hero-dk {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+    color: var(--color-text-secondary);
+    max-width: 500px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+  }
+
+  .hero-subtitle strong { color: var(--color-text-primary); }
+
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 28px;
+    background: white;
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    text-decoration: none;
+    font-family: var(--font-body);
+  }
+
+  .btn-outline:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .hero-stats-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .hero-stat-chip {
+    padding: 8px 18px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: 50px;
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .hero-stat-chip strong {
+    color: var(--color-accent);
+    font-weight: 800;
+  }
+
+  /* ===== SECTIONS ===== */
+  .section-header {
+    text-align: center;
+    margin-bottom: 40px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.6s ease;
+  }
+
+  .section-header.visible { opacity: 1; transform: translateY(0); }
+
+  .section-chip {
+    display: inline-block;
+    padding: 6px 16px;
+    background: var(--color-accent-bg);
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+
+  .section-chip-warm {
+    background: var(--color-secondary-bg);
+    color: var(--color-secondary);
+  }
+
+  .section-tinted {
+    background: linear-gradient(180deg, var(--color-bg-tertiary), var(--color-bg-primary));
+  }
+
+  /* ===== PAKET ===== */
+  .paket-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 24px;
+  }
+
+  .paket-card {
+    background: white;
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  .paket-card.visible { opacity: 1; transform: translateY(0); }
+  .paket-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-6px); }
+
+  .paket-card-top {
+    padding: 32px 28px 28px;
+    color: white;
+    position: relative;
+  }
+
+  .paket-card-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+
+  .paket-price-label {
+    display: block;
+    font-size: 0.78rem;
+    opacity: 0.8;
+    margin-bottom: 2px;
+  }
+
+  .paket-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .paket-price-rp { font-size: 1rem; opacity: 0.8; }
+
+  .paket-price-value {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    font-weight: 900;
+  }
+
+  .paket-card-desc {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    opacity: 0.85;
+  }
+
+  .paket-card-body {
+    flex: 1;
+    padding: 24px 28px 28px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .paket-items-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .paket-items-label svg { color: var(--color-success); }
+
+  .paket-items {
+    flex: 1;
+    margin-bottom: 20px;
+  }
+
+  .paket-items li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    font-size: 0.88rem;
+    color: var(--color-text-secondary);
+  }
+
+  .paket-item-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .paket-buy-btn {
+    padding: 14px;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    transition: all var(--transition-normal);
+  }
+
+  .paket-buy-btn:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    transform: translateY(-2px);
+  }
+
+  /* ===== SATUAN ===== */
+  .satuan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 10px;
+  }
+
+  .satuan-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  .satuan-card.visible { opacity: 1; transform: translateY(0); }
+
+  .satuan-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-md);
+    transform: translateX(4px);
+  }
+
+  .satuan-left { display: flex; align-items: center; gap: 12px; }
+
+  .satuan-avatar {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    font-size: 1.2rem;
+  }
+
+  .satuan-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+
+  .satuan-price {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    font-family: var(--font-heading);
+  }
+
+  .satuan-right {
+    flex-shrink: 0;
+  }
+
+  .satuan-add-btn {
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-accent-bg);
+    border: 1px solid transparent;
+    color: var(--color-accent);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .satuan-add-btn:hover {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: var(--shadow-accent);
+  }
+
+  .satuan-counter {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--color-accent-bg);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .sc-btn {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: white;
+    border: 1px solid var(--color-border);
+    color: var(--color-accent);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+  }
+
+  .sc-btn:hover {
+    background: var(--color-accent);
+    color: white;
+    border-color: var(--color-accent);
+  }
+
+  .sc-minus:hover {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    color: white;
+  }
+
+  .sc-qty {
+    min-width: 28px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 0.9rem;
+    font-family: var(--font-heading);
+    color: var(--color-accent);
+  }
+
+  /* ===== CTA ===== */
+  .cta-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 40px 48px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-2xl);
+    color: white;
+    box-shadow: var(--shadow-accent-lg);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.6s ease;
+  }
+
+  .cta-banner.visible { opacity: 1; transform: translateY(0); }
+
+  .cta-left h2 { font-size: 1.5rem; margin-bottom: 4px; color: white; }
+  .cta-left p { opacity: 0.85; font-size: 0.9rem; }
+  .cta-banner .btn { background: white; color: var(--color-accent); box-shadow: var(--shadow-md); }
+  .cta-banner .btn:hover { box-shadow: var(--shadow-lg); }
+
+  /* ===== CART SIDEBAR ===== */
+  .cart-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(4px);
+    z-index: 2000; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .cart-overlay.open { opacity: 1; pointer-events: all; }
+
+  .cart-sidebar {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 420px; max-width: 100vw;
+    background: var(--color-bg-secondary);
+    border-left: 1px solid var(--color-border);
+    z-index: 2001;
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: var(--shadow-xl);
+  }
+  .cart-sidebar.open { transform: translateX(0); }
+
+  .cart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .cart-header h3 { font-size: 1.1rem; }
+
+  .cart-close-btn {
+    background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
+    color: var(--color-text-secondary); padding: 6px;
+    border-radius: 8px; cursor: pointer; display: flex;
+    transition: all 0.2s;
+  }
+  .cart-close-btn:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: var(--color-danger); }
+
+  .cart-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+  .cart-empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 8px; color: var(--color-text-muted); font-size: 0.9rem;
+  }
+  .cart-empty-icon { font-size: 3rem; opacity: 0.15; }
+
+  .ci {
+    background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 14px; margin-bottom: 8px;
+    transition: border-color 0.2s;
+  }
+  .ci:hover { border-color: var(--color-border-hover); }
+  .ci-info { display: flex; gap: 10px; margin-bottom: 10px; }
+  .ci-icon { font-size: 1.3rem; }
+  .ci-name { font-size: 0.85rem; font-weight: 600; }
+  .ci-price { font-size: 0.78rem; color: var(--color-accent); font-weight: 700; }
+  .ci-sub { display: flex; flex-direction: column; margin-top: 4px; }
+  .ci-sub small { font-size: 0.68rem; color: var(--color-text-muted); }
+  .ci-ctrl { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .ci-qty-btn {
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    background: white; border: 1px solid var(--color-border); color: var(--color-text-primary);
+    border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 700;
+    transition: all 0.15s;
+  }
+  .ci-qty-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .ci-qty { min-width: 20px; text-align: center; font-weight: 800; font-size: 0.9rem; }
+  .ci-del { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 4px; opacity: 0.35; transition: opacity 0.15s; }
+  .ci-del:hover { opacity: 1; }
+
+  .cart-footer-bar {
+    padding: 20px 24px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+  }
+  .cart-total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; font-weight: 700; font-size: 1rem;
+  }
+  .cart-total-amount {
+    color: var(--color-accent);
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 800;
+  }
+
+  .empty-state { text-align: center; padding: 48px; color: var(--color-text-muted); font-size: 1rem; }
+
+  /* ===== BATCH BANNER ===== */
+  .batch-banner {
+    position: fixed;
+    top: 68px;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    animation: slideDown 0.4s ease;
+  }
+
+  @keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .batch-banner-open {
+    background: linear-gradient(135deg, #059669, #10B981);
+    color: white;
+  }
+
+  .batch-banner-upcoming {
+    background: linear-gradient(135deg, #D97706, #F59E0B);
+    color: white;
+  }
+
+  .batch-banner-closed,
+  .batch-banner-inactive {
+    background: linear-gradient(135deg, #7F1D1D, #DC2626);
+    color: white;
+  }
+
+  .batch-banner-inner {
+    padding: 14px 0;
+  }
+
+  .batch-banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .batch-banner-content-center {
+    justify-content: center;
+  }
+
+  .batch-banner-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .batch-banner-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .batch-banner-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .batch-banner-date {
+    font-size: 0.78rem;
+    opacity: 0.85;
+    line-height: 1.4;
+  }
+
+  .batch-banner-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: white;
+    flex-shrink: 0;
+    animation: pulse-glow 2s ease-in-out infinite;
+    box-shadow: 0 0 8px rgba(255,255,255,0.5);
+  }
+
+  .batch-banner-dot-upcoming {
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+
+  .batch-banner-dot-closed {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .batch-banner-countdown {
+    font-size: 0.85rem;
+    font-weight: 800;
+    font-family: var(--font-heading);
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    padding: 8px 18px;
+    border-radius: var(--radius-full);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* When batch banner exists, push hero down */
+  :global(body:has(.batch-banner)) .hero {
+    padding-top: 148px;
+  }
+
+  @media (max-width: 768px) {
+    .hero { padding: 80px 0 40px; }
+    .hero-actions { flex-direction: column; align-items: center; }
+    .paket-grid { grid-template-columns: 1fr; }
+    .satuan-grid { grid-template-columns: 1fr; }
+    .cart-sidebar { width: 100vw; }
+    .cta-banner { padding: 28px 24px; text-align: center; justify-content: center; }
+
+    /* ===== BATCH BANNER MOBILE ===== */
+    .batch-banner-inner {
+      padding: 10px 0;
+    }
+
+    .batch-banner-content {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+    }
+
+    .batch-banner-content-center {
+      gap: 4px;
+    }
+
+    .batch-banner-info {
+      align-items: center;
+      gap: 2px;
+    }
+
+    .batch-banner-title-row {
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .batch-banner-title {
+      font-size: 0.85rem;
+    }
+
+    .batch-banner-dot {
+      width: 8px;
+      height: 8px;
+    }
+
+    .batch-banner-date {
+      font-size: 0.68rem;
+      opacity: 0.9;
+    }
+
+    .batch-banner-countdown {
+      font-size: 0.72rem;
+      padding: 5px 14px;
+      background: rgba(255,255,255,0.25);
+    }
+
+    :global(body:has(.batch-banner)) .hero {
+      padding-top: 155px;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .batch-banner-title {
+      font-size: 0.78rem;
+      white-space: normal;
+    }
+
+    .batch-banner-date {
+      font-size: 0.65rem;
+    }
+
+    .batch-banner-countdown {
+      font-size: 0.68rem;
+      padding: 4px 12px;
+    }
+  }
+</style>
