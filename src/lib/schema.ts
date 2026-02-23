@@ -2,7 +2,6 @@ import { pgTable, serial, text, integer, boolean, timestamp, jsonb, varchar, pgE
 
 export const productTypeEnum = pgEnum('product_type', ['paket', 'satuan']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'confirmed', 'processing', 'completed', 'cancelled']);
-export const kelompokEnum = pgEnum('kelompok', ['MR1', 'MR2', 'MR3', 'MR4', 'SMD1', 'SMD2', 'CHP']);
 
 export const products = pgTable('products', {
     id: serial('id').primaryKey(),
@@ -23,7 +22,7 @@ export const orders = pgTable('orders', {
     orderNumber: varchar('order_number', { length: 50 }).notNull().unique(),
     customerName: varchar('customer_name', { length: 255 }).notNull(),
     whatsappNumber: varchar('whatsapp_number', { length: 20 }).notNull(),
-    kelompok: kelompokEnum('kelompok').notNull(),
+    kelompok: varchar('kelompok', { length: 100 }).notNull(),
     items: jsonb('items').$type<OrderItem[]>().notNull(),
     totalAmount: integer('total_amount').notNull().default(0),
     status: orderStatusEnum('status').notNull().default('pending'),

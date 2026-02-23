@@ -48,7 +48,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
     <div class="filters-right">
       <!-- Kelompok Filter -->
       <select class="kelompok-filter" id="kelompokFilter">
-        <option value="all">👥 Semua Kelompok</option>
+        <option value="all">🏢 Semua Kantor</option>
         {kelompokList.map(k => (
           <option value={k}>{k}</option>
         ))}
@@ -83,7 +83,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
               </th>
               <th>No. Order</th>
               <th>Pelanggan</th>
-              <th>Kelompok</th>
+              <th>Kantor</th>
               <th>Item</th>
               <th>Total</th>
               <th>WA</th>

@@ -94,7 +94,7 @@ export function formatOrderMessage(order: {
     message += `💰 *Total: Rp ${order.totalAmount.toLocaleString('id-ID')}*\n\n`;
     message += `👤 *Nama:* ${order.customerName}\n`;
     message += `📱 *WhatsApp:* ${order.whatsappNumber}\n`;
-    message += `👥 *Kelompok:* ${order.kelompok}\n\n`;
+    message += `🏢 *Kantor:* ${order.kelompok}\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `💳 *Cara Pembayaran:*\n`;
     message += order.paymentInfo || 'Hubungi admin untuk info pembayaran';
