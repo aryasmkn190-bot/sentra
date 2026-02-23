@@ -12,9 +12,22 @@ try {
 }
 
 // Batch helper
+// Strip timezone for datetime-local input (display as WIB local time)
+function toDatetimeLocal(isoStr: string): string {
+  if (!isoStr) return '';
+  // If stored with +07:00, convert to local display format YYYY-MM-DDTHH:mm
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return isoStr.slice(0, 16); // fallback
+  // Offset to WIB (+7h)
+  const wib = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+  return wib.toISOString().slice(0, 16);
+}
+
 const batchStart = currentSettings.batch_start || '';
 const batchEnd = currentSettings.batch_end || '';
 const batchName = currentSettings.batch_name || '';
+const batchStartLocal = toDatetimeLocal(batchStart);
+const batchEndLocal = toDatetimeLocal(batchEnd);
 const batchActive = currentSettings.batch_active === 'true';
 
 // Determine batch status server-side for initial render
@@ -70,11 +83,13 @@ if (batchActive && batchStart && batchEnd) {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Mulai</label>
-            <input type="datetime-local" name="batch_start" class="form-input" value={batchStart} id="batchStartInput" />
+            <input type="datetime-local" name="batch_start" class="form-input" value={batchStartLocal} id="batchStartInput" />
+            <small class="form-hint">Waktu Indonesia Barat (WIB, UTC+7)</small>
           </div>
           <div class="form-group">
             <label class="form-label">Berakhir</label>
-            <input type="datetime-local" name="batch_end" class="form-input" value={batchEnd} id="batchEndInput" />
+            <input type="datetime-local" name="batch_end" class="form-input" value={batchEndLocal} id="batchEndInput" />
+            <small class="form-hint">Waktu Indonesia Barat (WIB, UTC+7)</small>
           </div>
         </div>
         <div class="batch-toggle-row">
@@ -193,10 +208,20 @@ if (batchActive && batchStart && batchEnd) {
       const data: Record<string, string> = {};
       formData.forEach((value, key) => { data[key] = value.toString(); });
 
-      // Handle batch_active checkbox specially
+      // Handle batch section specially
       if (section === 'batch') {
+        // Fix checkbox
         const toggle = document.getElementById('batchActiveToggle') as HTMLInputElement;
         data.batch_active = toggle?.checked ? 'true' : 'false';
+
+        // Convert datetime-local values to ISO string with explicit WIB (+07:00) offset
+        // This ensures Vercel server (UTC) reads the correct time
+        if (data.batch_start) {
+          data.batch_start = data.batch_start + ':00+07:00';
+        }
+        if (data.batch_end) {
+          data.batch_end = data.batch_end + ':00+07:00';
+        }
       }
 
       const btn = form.querySelector('button[type="submit"]');
