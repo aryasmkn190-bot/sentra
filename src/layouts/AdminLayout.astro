@@ -1,4 +1,6 @@
 ---
+import { getAdminUser } from '../lib/auth';
+
 interface Props {
   title?: string;
   activeMenu?: string;
@@ -9,6 +11,12 @@ const { title = 'Admin — Sentra', activeMenu = 'dashboard' } = Astro.props;
 import '../styles/global.css';
 
 const pageTitle = title.replace(' — Sentra', '');
+
+// Get current admin user from request
+const adminUser = getAdminUser(Astro.request);
+const isSuperAdmin = adminUser?.role === 'super_admin';
+const userName = adminUser?.name || 'Admin';
+const userRole = adminUser?.role || 'admin';
 ---
 <!DOCTYPE html>
 <html lang="id">
@@ -47,14 +55,27 @@ const pageTitle = title.replace(' — Sentra', '');
         <span class="nav-icon">📦</span>
         <span>Pesanan</span>
       </a>
-      <a href="/admin/products" class={`nav-item ${activeMenu === 'products' ? 'active' : ''}`}>
-        <span class="nav-icon">🏷️</span>
-        <span>Produk</span>
-      </a>
-      <a href="/admin/settings" class={`nav-item ${activeMenu === 'settings' ? 'active' : ''}`}>
-        <span class="nav-icon">⚙️</span>
-        <span>Pengaturan</span>
-      </a>
+      {isSuperAdmin && (
+        <a href="/admin/products" class={`nav-item ${activeMenu === 'products' ? 'active' : ''}`}>
+          <span class="nav-icon">🏷️</span>
+          <span>Produk</span>
+        </a>
+      )}
+      {isSuperAdmin && (
+        <a href="/admin/settings" class={`nav-item ${activeMenu === 'settings' ? 'active' : ''}`}>
+          <span class="nav-icon">⚙️</span>
+          <span>Pengaturan</span>
+        </a>
+      )}
+      {isSuperAdmin && (
+        <>
+          <div class="nav-divider"></div>
+          <a href="/admin/users" class={`nav-item ${activeMenu === 'users' ? 'active' : ''}`}>
+            <span class="nav-icon">👥</span>
+            <span>Kelola Admin</span>
+          </a>
+        </>
+      )}
       <div class="nav-divider"></div>
       <a href="/" class="nav-item" target="_blank">
         <span class="nav-icon">🌐</span>
@@ -83,7 +104,9 @@ const pageTitle = title.replace(' — Sentra', '');
         </a>
         <span class="admin-user">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span class="desktop-only">Admin</span>
+          <span class="desktop-only">{userName}</span>
+          {isSuperAdmin && <span class="role-badge role-badge-super">Super</span>}
+          {!isSuperAdmin && <span class="role-badge role-badge-admin">Admin</span>}
         </span>
       </div>
     </header>
@@ -96,20 +119,29 @@ const pageTitle = title.replace(' — Sentra', '');
   <nav class="mobile-bottom-nav">
     <a href="/admin" class={`bottom-nav-item ${activeMenu === 'dashboard' ? 'active' : ''}`}>
       <span class="bottom-nav-icon">📊</span>
-      <span>Dashboard</span>
+      <span>Home</span>
     </a>
     <a href="/admin/orders" class={`bottom-nav-item ${activeMenu === 'orders' ? 'active' : ''}`}>
       <span class="bottom-nav-icon">📦</span>
       <span>Pesanan</span>
     </a>
-    <a href="/admin/products" class={`bottom-nav-item ${activeMenu === 'products' ? 'active' : ''}`}>
-      <span class="bottom-nav-icon">🏷️</span>
-      <span>Produk</span>
-    </a>
-    <a href="/admin/settings" class={`bottom-nav-item ${activeMenu === 'settings' ? 'active' : ''}`}>
-      <span class="bottom-nav-icon">⚙️</span>
-      <span>Setting</span>
-    </a>
+    {isSuperAdmin && (
+      <a href="/admin/products" class={`bottom-nav-item ${activeMenu === 'products' ? 'active' : ''}`}>
+        <span class="bottom-nav-icon">🏷️</span>
+        <span>Produk</span>
+      </a>
+    )}
+    {isSuperAdmin ? (
+      <a href="/admin/users" class={`bottom-nav-item ${activeMenu === 'users' ? 'active' : ''}`}>
+        <span class="bottom-nav-icon">👥</span>
+        <span>Admin</span>
+      </a>
+    ) : (
+      <a href="/api/auth/logout" class="bottom-nav-item">
+        <span class="bottom-nav-icon">🚪</span>
+        <span>Logout</span>
+      </a>
+    )}
   </nav>
   
   <!-- Toast -->
@@ -370,6 +402,26 @@ const pageTitle = title.replace(' — Sentra', '');
     padding: 6px 12px;
     border-radius: var(--radius-full);
     border: 1px solid var(--color-border);
+  }
+
+  .role-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    line-height: 1;
+  }
+
+  .role-badge-super {
+    background: linear-gradient(135deg, #F59E0B, #FBBF24);
+    color: #78350F;
+  }
+
+  .role-badge-admin {
+    background: linear-gradient(135deg, #3B82F6, #60A5FA);
+    color: white;
   }
 
   .admin-content {

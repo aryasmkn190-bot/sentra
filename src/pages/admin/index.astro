@@ -3,6 +3,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { db } from '../../lib/db';
 import { orders, products } from '../../lib/schema';
 import { eq, desc, sql, count } from 'drizzle-orm';
+import { getAdminUser, getAllowedOffices } from '../../lib/auth';
+
+const adminUser = getAdminUser(Astro.request);
+const allowedOffices = getAllowedOffices(Astro.request);
+const isSuperAdmin = adminUser?.role === 'super_admin';
 
 let stats = {
   totalOrders: 0,
@@ -12,10 +17,16 @@ let stats = {
 };
 
 let recentOrders: any[] = [];
+let itemBreakdown: Record<string, { name: string; type: string; quantity: number; revenue: number }> = {};
 
 try {
-  const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  let allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
   const allProducts = await db.select().from(products);
+  
+  // Filter orders by allowed offices for regular admins
+  if (allowedOffices !== null) {
+    allOrders = allOrders.filter(o => allowedOffices.includes(o.kelompok));
+  }
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -28,9 +39,36 @@ try {
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   
   recentOrders = allOrders.slice(0, 10);
+
+  // Build per-item breakdown from non-cancelled orders
+  const activeOrders = allOrders.filter(o => o.status !== 'cancelled');
+  for (const order of activeOrders) {
+    const items = (order.items as any[]) || [];
+    for (const item of items) {
+      const key = item.productName || 'Unknown';
+      const type = item.productType || 'satuan';
+      if (!itemBreakdown[key]) {
+        itemBreakdown[key] = { name: key, type, quantity: 0, revenue: 0 };
+      }
+      itemBreakdown[key].quantity += item.quantity || 0;
+      itemBreakdown[key].revenue += (item.quantity || 0) * (item.price || 0);
+    }
+  }
 } catch (error) {
   console.error('Dashboard error:', error);
 }
+
+// Sort items: by quantity descending
+const satuanItems = Object.values(itemBreakdown)
+  .filter(i => i.type === 'satuan')
+  .sort((a, b) => b.quantity - a.quantity);
+
+const paketItems = Object.values(itemBreakdown)
+  .filter(i => i.type === 'paket')
+  .sort((a, b) => b.quantity - a.quantity);
+
+const totalSatuanQty = satuanItems.reduce((s, i) => s + i.quantity, 0);
+const totalPaketQty = paketItems.reduce((s, i) => s + i.quantity, 0);
 
 const statusColors: Record<string, string> = {
   pending: 'warning',
@@ -92,13 +130,82 @@ const statusLabels: Record<string, string> = {
 
   <!-- Quick Actions (Mobile) -->
   <div class="quick-actions">
-    <a href="/admin/products" class="quick-action-btn">
-      <span>➕</span> Tambah Produk
-    </a>
     <a href="/admin/orders" class="quick-action-btn">
       <span>📋</span> Lihat Pesanan
     </a>
+    {isSuperAdmin && (
+      <a href="/admin/products" class="quick-action-btn">
+        <span>➕</span> Tambah Produk
+      </a>
+    )}
   </div>
+
+  <!-- Item Breakdown Section -->
+  {(satuanItems.length > 0 || paketItems.length > 0) && (
+    <div class="dashboard-section item-breakdown-section">
+      <div class="section-header-row">
+        <h2>🛒 Rekap Pesanan Per Item</h2>
+        <span class="section-badge">{totalSatuanQty + totalPaketQty} item total</span>
+      </div>
+
+      <!-- Satuan Items -->
+      {satuanItems.length > 0 && (
+        <div class="breakdown-group">
+          <div class="breakdown-group-header">
+            <span class="breakdown-group-icon">🚬</span>
+            <span class="breakdown-group-title">Produk Satuan</span>
+            <span class="breakdown-group-total">{totalSatuanQty} pcs</span>
+          </div>
+          <div class="item-breakdown-grid">
+            {satuanItems.map((item, idx) => {
+              const maxQty = satuanItems[0]?.quantity || 1;
+              const pct = Math.round((item.quantity / maxQty) * 100);
+              return (
+                <div class="item-row" style={`animation-delay: ${idx * 0.04}s`}>
+                  <div class="item-row-main">
+                    <span class="item-rank">#{idx + 1}</span>
+                    <div class="item-name-col">
+                      <span class="item-name">{item.name}</span>
+                      <span class="item-revenue">Rp {item.revenue.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div class="item-qty-badge">
+                      <strong>{item.quantity}</strong>
+                      <small>pcs</small>
+                    </div>
+                  </div>
+                  <div class="item-bar-track">
+                    <div class="item-bar-fill" style={`width: ${pct}%`}></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <!-- Paket Items -->
+      {paketItems.length > 0 && (
+        <div class="breakdown-group breakdown-group-paket">
+          <div class="breakdown-group-header">
+            <span class="breakdown-group-icon">📦</span>
+            <span class="breakdown-group-title">Produk Paket</span>
+            <span class="breakdown-group-total">{totalPaketQty} pcs</span>
+          </div>
+          <div class="paket-breakdown-grid">
+            {paketItems.map((item) => (
+              <div class="paket-item-card">
+                <div class="paket-item-name">{item.name}</div>
+                <div class="paket-item-stats">
+                  <span class="paket-item-qty">{item.quantity} pcs</span>
+                  <span class="paket-item-rev">Rp {item.revenue.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
 
   <!-- Recent Orders -->
   <div class="dashboard-section">
@@ -334,6 +441,197 @@ const statusLabels: Record<string, string> = {
   .moc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
   .moc-meta small { font-size: 0.7rem; }
 
+  /* ===== ITEM BREAKDOWN ===== */
+  .item-breakdown-section {
+    margin-bottom: 28px;
+  }
+
+  .section-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    border: 1px solid rgba(79, 70, 229, 0.12);
+  }
+
+  .breakdown-group {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 14px;
+  }
+
+  .breakdown-group-paket {
+    margin-bottom: 0;
+  }
+
+  .breakdown-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .breakdown-group-icon {
+    font-size: 1.2rem;
+  }
+
+  .breakdown-group-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    flex: 1;
+  }
+
+  .breakdown-group-total {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+
+  .item-breakdown-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .item-row {
+    animation: fadeIn 0.4s ease forwards;
+    opacity: 0;
+  }
+
+  .item-row-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .item-rank {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--color-text-muted);
+    min-width: 24px;
+    text-align: center;
+    font-family: var(--font-heading);
+  }
+
+  .item-name-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .item-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-revenue {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+
+  .item-qty-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    background: var(--gradient-primary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    box-shadow: var(--shadow-accent);
+  }
+
+  .item-qty-badge strong {
+    font-size: 0.88rem;
+    font-family: var(--font-heading);
+    font-weight: 800;
+  }
+
+  .item-qty-badge small {
+    font-size: 0.62rem;
+    font-weight: 600;
+    opacity: 0.8;
+  }
+
+  .item-bar-track {
+    height: 4px;
+    background: var(--color-bg-tertiary);
+    border-radius: 4px;
+    margin-top: 6px;
+    margin-left: 36px;
+    overflow: hidden;
+  }
+
+  .item-bar-fill {
+    height: 100%;
+    background: var(--gradient-primary);
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+
+  /* Paket breakdown */
+  .paket-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .paket-item-card {
+    padding: 14px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: all 0.15s;
+  }
+
+  .paket-item-card:hover {
+    border-color: var(--color-border-hover);
+  }
+
+  .paket-item-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+  }
+
+  .paket-item-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .paket-item-qty {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--color-accent);
+    font-family: var(--font-heading);
+  }
+
+  .paket-item-rev {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
   /* ===== RESPONSIVE ===== */
   @media (max-width: 1024px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -362,9 +660,15 @@ const statusLabels: Record<string, string> = {
     .mobile-orders-list { display: block; }
 
     .section-header-row h2 { font-size: 1rem; }
+
+    .breakdown-group { padding: 16px; }
+    .item-bar-track { margin-left: 0; }
+    .item-rank { display: none; }
+    .paket-breakdown-grid { grid-template-columns: 1fr 1fr; }
   }
 
   @media (max-width: 380px) {
     .stat-card { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+    .paket-breakdown-grid { grid-template-columns: 1fr; }
   }
 </style>

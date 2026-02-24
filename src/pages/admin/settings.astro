@@ -2,6 +2,12 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { db } from '../../lib/db';
 import { settings } from '../../lib/schema';
+import { getAdminUser } from '../../lib/auth';
+
+const adminUser = getAdminUser(Astro.request);
+if (adminUser?.role !== 'super_admin') {
+  return Astro.redirect('/admin');
+}
 
 let currentSettings: Record<string, string> = {};
 try {

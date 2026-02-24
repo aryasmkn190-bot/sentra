@@ -2,6 +2,7 @@ import { pgTable, serial, text, integer, boolean, timestamp, jsonb, varchar, pgE
 
 export const productTypeEnum = pgEnum('product_type', ['paket', 'satuan']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'confirmed', 'processing', 'completed', 'cancelled']);
+export const adminRoleEnum = pgEnum('admin_role', ['super_admin', 'admin']);
 
 export const products = pgTable('products', {
     id: serial('id').primaryKey(),
@@ -39,11 +40,25 @@ export const settings = pgTable('settings', {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const adminUsers = pgTable('admin_users', {
+    id: serial('id').primaryKey(),
+    username: varchar('username', { length: 100 }).notNull().unique(),
+    password: varchar('password', { length: 255 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    role: adminRoleEnum('role').notNull().default('admin'),
+    allowedOffices: jsonb('allowed_offices').$type<string[]>().default([]),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type NewAdminUser = typeof adminUsers.$inferInsert;
 
 export interface OrderItem {
     productId: number;

@@ -3,6 +3,12 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { db } from '../../lib/db';
 import { products } from '../../lib/schema';
 import { asc } from 'drizzle-orm';
+import { getAdminUser } from '../../lib/auth';
+
+const adminUser = getAdminUser(Astro.request);
+if (adminUser?.role !== 'super_admin') {
+  return Astro.redirect('/admin');
+}
 
 let allProducts: any[] = [];
 try {

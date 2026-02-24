@@ -12,8 +12,36 @@ if (!DATABASE_URL) {
 const sql = neon(DATABASE_URL);
 const db = drizzle(sql, { schema });
 
+// Simple hash function matching auth.ts logic
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'swasembada-dk-secret-2024';
+function hashPassword(password: string): string {
+    return btoa(`${ADMIN_SECRET}:${password}:hashed`);
+}
+
 async function seed() {
     console.log('🌱 Seeding database...');
+
+    // Seed super admin user
+    const superAdminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const superAdminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
+    try {
+        await db.insert(schema.adminUsers).values({
+            username: superAdminUsername,
+            password: hashPassword(superAdminPassword),
+            name: 'Super Admin',
+            role: 'super_admin',
+            allowedOffices: [],
+            isActive: true,
+        });
+        console.log(`  ✅ Created super admin: ${superAdminUsername}`);
+    } catch (error: any) {
+        if (error?.message?.includes('duplicate') || error?.message?.includes('unique')) {
+            console.log(`  ℹ️ Super admin "${superAdminUsername}" already exists, skipping.`);
+        } else {
+            console.error('  ❌ Error creating super admin:', error);
+        }
+    }
 
     // Seed products - Paket
     const paketProducts = [

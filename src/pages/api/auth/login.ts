@@ -6,16 +6,26 @@ export const POST: APIRoute = async ({ request }) => {
         const body = await request.json();
         const { username, password } = body;
 
-        if (!validateCredentials(username, password)) {
+        const user = await validateCredentials(username, password);
+
+        if (!user) {
             return new Response(JSON.stringify({ success: false, message: 'Username atau password salah' }), {
                 status: 401,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
 
-        const token = generateToken(username);
+        const token = generateToken(user);
 
-        return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({
+            success: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                name: user.name,
+                role: user.role,
+            },
+        }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
@@ -23,6 +33,7 @@ export const POST: APIRoute = async ({ request }) => {
             },
         });
     } catch (error) {
+        console.error('Login error:', error);
         return new Response(JSON.stringify({ success: false, message: 'Server error' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },

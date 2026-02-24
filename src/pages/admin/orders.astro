@@ -3,10 +3,22 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { db } from '../../lib/db';
 import { orders } from '../../lib/schema';
 import { desc } from 'drizzle-orm';
+import { getAdminUser, getAllowedOffices } from '../../lib/auth';
+
+const adminUser = getAdminUser(Astro.request);
+const allowedOffices = getAllowedOffices(Astro.request);
+const isSuperAdmin = adminUser?.role === 'super_admin';
 
 let allOrders: any[] = [];
 try {
-  allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  let fetchedOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  
+  // Filter orders by allowed offices for regular admins
+  if (allowedOffices !== null) {
+    fetchedOrders = fetchedOrders.filter(o => allowedOffices.includes(o.kelompok));
+  }
+  
+  allOrders = fetchedOrders;
 } catch (error) {
   console.error('Error fetching orders:', error);
 }
@@ -27,7 +39,7 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Dibatalkan',
 };
 
-// Get unique kelompok values
+// Get unique kelompok values from filtered orders
 const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
 ---
 

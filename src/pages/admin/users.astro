@@ -1,0 +1,960 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { adminUsers } from '../../lib/schema';
+import { getAdminUser } from '../../lib/auth';
+import { asc } from 'drizzle-orm';
+
+const currentAdmin = getAdminUser(Astro.request);
+if (currentAdmin?.role !== 'super_admin') {
+  return Astro.redirect('/admin');
+}
+
+let allAdmins: any[] = [];
+try {
+  allAdmins = await db.select({
+    id: adminUsers.id,
+    username: adminUsers.username,
+    name: adminUsers.name,
+    role: adminUsers.role,
+    allowedOffices: adminUsers.allowedOffices,
+    isActive: adminUsers.isActive,
+    createdAt: adminUsers.createdAt,
+  }).from(adminUsers).orderBy(asc(adminUsers.id));
+} catch (error) {
+  console.error('Error fetching admin users:', error);
+}
+
+const officeList = [
+  'PTO CENTRAL',
+  'PTO HOLDING 1', 'PTO HOLDING 2', 'PTO HOLDING 3', 'PTO HOLDING 4', 'PTO HOLDING 5',
+  'PTO 1', 'PTO 2', 'PTO 3', 'PTO 4', 'PTO 5', 'PTO 6',
+];
+---
+
+<AdminLayout title="Kelola Admin" activeMenu="users">
+  <div class="users-header">
+    <div class="users-stats">
+      <div class="users-stat">
+        <span class="users-stat-value">{allAdmins.length}</span>
+        <span class="users-stat-label">Total Admin</span>
+      </div>
+      <div class="users-stat">
+        <span class="users-stat-value">{allAdmins.filter(a => a.role === 'super_admin').length}</span>
+        <span class="users-stat-label">Super Admin</span>
+      </div>
+      <div class="users-stat">
+        <span class="users-stat-value">{allAdmins.filter(a => a.isActive).length}</span>
+        <span class="users-stat-label">Aktif</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="addAdminBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="btn-text-desktop">Tambah Admin</span>
+      <span class="btn-text-mobile">Tambah</span>
+    </button>
+  </div>
+
+  <!-- Admin Users List -->
+  {allAdmins.length > 0 ? (
+    <div class="admin-users-list">
+      {allAdmins.map((admin) => (
+        <div class="user-card" data-user-id={admin.id}>
+          <div class="uc-header">
+            <div class="uc-avatar" style={admin.role === 'super_admin' ? 'background: linear-gradient(135deg, #F59E0B, #FBBF24);' : 'background: linear-gradient(135deg, #3B82F6, #60A5FA);'}>
+              {admin.name.charAt(0).toUpperCase()}
+            </div>
+            <div class="uc-info">
+              <div class="uc-name-row">
+                <strong>{admin.name}</strong>
+                <span class={`role-chip role-chip-${admin.role}`}>
+                  {admin.role === 'super_admin' ? '👑 Super Admin' : '🛡️ Admin'}
+                </span>
+              </div>
+              <span class="uc-username">@{admin.username}</span>
+            </div>
+            <div class="uc-actions">
+              <span class={`status-dot ${admin.isActive ? 'status-active' : 'status-inactive'}`} title={admin.isActive ? 'Aktif' : 'Nonaktif'}></span>
+              {admin.id !== currentAdmin?.id && (
+                <>
+                  <button class="icon-btn edit-admin-btn"
+                    data-id={admin.id}
+                    data-username={admin.username}
+                    data-name={admin.name}
+                    data-role={admin.role}
+                    data-offices={JSON.stringify(admin.allowedOffices || [])}
+                    data-active={admin.isActive}
+                    title="Edit">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="icon-btn icon-btn-danger delete-admin-btn" data-id={admin.id} data-name={admin.name} title="Hapus">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </>
+              )}
+              {admin.id === currentAdmin?.id && (
+                <span class="you-badge">Anda</span>
+              )}
+            </div>
+          </div>
+          {admin.role === 'admin' && (
+            <div class="uc-offices">
+              <span class="uc-offices-label">📁 Akses Kantor:</span>
+              <div class="uc-offices-chips">
+                {(admin.allowedOffices || []).length > 0 ? (
+                  (admin.allowedOffices || []).map((office: string) => (
+                    <span class="office-chip">{office}</span>
+                  ))
+                ) : (
+                  <span class="no-offices">Belum ada kantor yang diizinkan</span>
+                )}
+              </div>
+            </div>
+          )}
+          {admin.role === 'super_admin' && (
+            <div class="uc-offices">
+              <span class="uc-offices-label">📁 Akses Kantor:</span>
+              <span class="all-offices-badge">✅ Semua Kantor</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div class="empty-state-card">
+      <div class="empty-icon">👥</div>
+      <p>Belum ada admin terdaftar</p>
+      <small>Tambahkan admin pertama di atas</small>
+    </div>
+  )}
+
+  <!-- Add/Edit Admin Modal -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modalTitle">Tambah Admin Baru</h2>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <form id="adminForm">
+        <input type="hidden" id="adminId" />
+        <div class="form-group">
+          <label class="form-label">Nama Lengkap <span class="required">*</span></label>
+          <input type="text" id="adminName" class="form-input" placeholder="Nama admin" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username <span class="required">*</span></label>
+          <input type="text" id="adminUsername" class="form-input" placeholder="Username untuk login" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password <span class="required" id="pwdRequired">*</span></label>
+          <input type="password" id="adminPassword" class="form-input" placeholder="Password" />
+          <small class="form-hint" id="pwdHint" style="display:none;">Kosongkan jika tidak ingin mengubah password</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select id="adminRole" class="form-select">
+            <option value="admin">🛡️ Admin — Akses terbatas ke kantor tertentu</option>
+            <option value="super_admin">👑 Super Admin — Akses penuh ke semua fitur</option>
+          </select>
+        </div>
+        <div class="form-group" id="officesGroup">
+          <label class="form-label">Kantor yang Diizinkan</label>
+          <small class="form-hint" style="margin-bottom: 10px; display: block;">Pilih kantor yang bisa dilihat/direkap oleh admin ini</small>
+          <div class="offices-grid">
+            {officeList.map(office => (
+              <label class="office-toggle">
+                <input type="checkbox" name="offices" value={office} />
+                <span class="office-toggle-label">{office}</span>
+              </label>
+            ))}
+          </div>
+          <div class="office-quick-actions">
+            <button type="button" class="btn btn-sm btn-secondary" id="selectAllOffices">Pilih Semua</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="deselectAllOffices">Hapus Semua</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <strong>Status Aktif</strong>
+              <small>Nonaktifkan untuk melarang login tanpa menghapus akun</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="adminActive" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="modalCancelBtn">Batal</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span id="submitBtnText">💾 Simpan</span>
+            <span id="submitBtnLoading" style="display:none;">⏳ Menyimpan...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirm -->
+  <div class="confirm-overlay" id="deleteOverlay">
+    <div class="confirm-modal">
+      <div class="confirm-icon">🗑️</div>
+      <h3>Hapus Admin?</h3>
+      <p id="deleteDesc">Admin ini akan dihapus permanen.</p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" id="deleteCancelBtn">Batal</button>
+        <button class="btn btn-danger" id="deleteConfirmBtn">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  const modal = document.getElementById('adminModal');
+  const form = document.getElementById('adminForm');
+  let editingId = null;
+  let pendingDeleteId = null;
+
+  // ===== MODAL OPEN/CLOSE =====
+  function openModal(isEdit = false) {
+    modal?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const title = document.getElementById('modalTitle');
+    const pwdRequired = document.getElementById('pwdRequired');
+    const pwdHint = document.getElementById('pwdHint');
+    const pwdInput = document.getElementById('adminPassword');
+    
+    if (isEdit) {
+      if (title) title.textContent = 'Edit Admin';
+      if (pwdRequired) pwdRequired.style.display = 'none';
+      if (pwdHint) pwdHint.style.display = 'block';
+      if (pwdInput) pwdInput.removeAttribute('required');
+    } else {
+      if (title) title.textContent = 'Tambah Admin Baru';
+      if (pwdRequired) pwdRequired.style.display = '';
+      if (pwdHint) pwdHint.style.display = 'none';
+      if (pwdInput) pwdInput.setAttribute('required', '');
+    }
+    updateOfficesVisibility();
+  }
+
+  function closeModal() {
+    modal?.classList.remove('open');
+    document.body.style.overflow = '';
+    editingId = null;
+    form?.reset();
+    document.querySelectorAll('input[name="offices"]').forEach(cb => cb.checked = false);
+    document.getElementById('adminActive').checked = true;
+  }
+
+  document.getElementById('addAdminBtn')?.addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('adminId').value = '';
+    document.getElementById('adminName').value = '';
+    document.getElementById('adminUsername').value = '';
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('adminRole').value = 'admin';
+    document.getElementById('adminActive').checked = true;
+    document.querySelectorAll('input[name="offices"]').forEach(cb => cb.checked = false);
+    openModal(false);
+  });
+
+  document.getElementById('modalClose')?.addEventListener('click', closeModal);
+  document.getElementById('modalCancelBtn')?.addEventListener('click', closeModal);
+  modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+  // ===== ROLE CHANGE → TOGGLE OFFICES =====
+  function updateOfficesVisibility() {
+    const role = document.getElementById('adminRole')?.value;
+    const officesGroup = document.getElementById('officesGroup');
+    if (officesGroup) {
+      officesGroup.style.display = role === 'admin' ? '' : 'none';
+    }
+  }
+  document.getElementById('adminRole')?.addEventListener('change', updateOfficesVisibility);
+
+  // ===== QUICK SELECT OFFICES =====
+  document.getElementById('selectAllOffices')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="offices"]').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('deselectAllOffices')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="offices"]').forEach(cb => cb.checked = false);
+  });
+
+  // ===== EDIT BUTTON =====
+  document.querySelectorAll('.edit-admin-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingId = parseInt(btn.dataset.id);
+      document.getElementById('adminId').value = btn.dataset.id;
+      document.getElementById('adminName').value = btn.dataset.name || '';
+      document.getElementById('adminUsername').value = btn.dataset.username || '';
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('adminRole').value = btn.dataset.role || 'admin';
+      document.getElementById('adminActive').checked = btn.dataset.active === 'true';
+      
+      // Set offices
+      const offices = JSON.parse(btn.dataset.offices || '[]');
+      document.querySelectorAll('input[name="offices"]').forEach(cb => {
+        cb.checked = offices.includes(cb.value);
+      });
+      
+      openModal(true);
+    });
+  });
+
+  // ===== FORM SUBMIT =====
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitBtnText');
+    const submitLoading = document.getElementById('submitBtnLoading');
+    
+    submitBtn.disabled = true;
+    submitText.style.display = 'none';
+    submitLoading.style.display = 'inline';
+
+    const role = document.getElementById('adminRole').value;
+    const allowedOffices = role === 'admin'
+      ? [...document.querySelectorAll('input[name="offices"]:checked')].map(cb => cb.value)
+      : [];
+
+    const data = {
+      name: document.getElementById('adminName').value,
+      username: document.getElementById('adminUsername').value,
+      password: document.getElementById('adminPassword').value || undefined,
+      role,
+      allowedOffices,
+      isActive: document.getElementById('adminActive').checked,
+    };
+
+    // Remove password if empty on edit
+    if (editingId && !data.password) delete data.password;
+    if (editingId) data.id = editingId;
+
+    try {
+      const res = await fetch('/api/admin-users', {
+        method: editingId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        window.showToast?.(result.message || 'Berhasil!');
+        closeModal();
+        setTimeout(() => window.location.reload(), 500);
+      } else {
+        window.showToast?.(result.message || 'Gagal menyimpan', 'error');
+      }
+    } catch {
+      window.showToast?.('Terjadi kesalahan', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitText.style.display = 'inline';
+      submitLoading.style.display = 'none';
+    }
+  });
+
+  // ===== DELETE =====
+  document.querySelectorAll('.delete-admin-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pendingDeleteId = parseInt(btn.dataset.id);
+      const desc = document.getElementById('deleteDesc');
+      if (desc) desc.textContent = `Admin "${btn.dataset.name}" akan dihapus permanen dan tidak dapat dikembalikan.`;
+      document.getElementById('deleteOverlay')?.classList.add('open');
+    });
+  });
+
+  document.getElementById('deleteCancelBtn')?.addEventListener('click', () => {
+    document.getElementById('deleteOverlay')?.classList.remove('open');
+    pendingDeleteId = null;
+  });
+
+  document.getElementById('deleteOverlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById('deleteOverlay')?.classList.remove('open');
+      pendingDeleteId = null;
+    }
+  });
+
+  document.getElementById('deleteConfirmBtn')?.addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    const btn = document.getElementById('deleteConfirmBtn');
+    if (btn) { btn.textContent = 'Menghapus...'; btn.disabled = true; }
+
+    try {
+      const res = await fetch('/api/admin-users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pendingDeleteId }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        window.showToast?.(result.message || 'Admin dihapus');
+        document.querySelector(`[data-user-id="${pendingDeleteId}"]`)?.remove();
+        document.getElementById('deleteOverlay')?.classList.remove('open');
+      } else {
+        window.showToast?.(result.message || 'Gagal menghapus', 'error');
+      }
+    } catch {
+      window.showToast?.('Terjadi kesalahan', 'error');
+    } finally {
+      if (btn) { btn.textContent = 'Ya, Hapus'; btn.disabled = false; }
+      pendingDeleteId = null;
+    }
+  });
+</script>
+
+<style>
+  .users-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 16px;
+  }
+
+  .users-stats {
+    display: flex;
+    gap: 24px;
+  }
+
+  .users-stat {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .users-stat-value {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    line-height: 1;
+  }
+
+  .users-stat-label {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  .btn-text-mobile { display: none; }
+
+  /* ===== USER CARDS ===== */
+  .admin-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .user-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    transition: all 0.2s ease;
+    animation: fadeIn 0.4s ease forwards;
+  }
+
+  .user-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .uc-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .uc-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .uc-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .uc-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .uc-name-row strong {
+    font-size: 0.95rem;
+  }
+
+  .role-chip {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    letter-spacing: 0.03em;
+  }
+
+  .role-chip-super_admin {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.12));
+    color: #B45309;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+
+  .role-chip-admin {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(96, 165, 250, 0.08));
+    color: #2563EB;
+    border: 1px solid rgba(59, 130, 246, 0.15);
+  }
+
+  .uc-username {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .uc-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-active {
+    background: #22C55E;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  }
+
+  .status-inactive {
+    background: #9CA3AF;
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: white;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .icon-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+  }
+
+  .icon-btn-danger:hover {
+    border-color: rgba(239, 68, 68, 0.3);
+    color: var(--color-danger);
+    background: rgba(239, 68, 68, 0.06);
+  }
+
+  .you-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+  }
+
+  /* ===== OFFICES ===== */
+  .uc-offices {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .uc-offices-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    padding-top: 3px;
+  }
+
+  .uc-offices-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .office-chip {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    background: rgba(79, 70, 229, 0.06);
+    color: var(--color-accent);
+    border: 1px solid rgba(79, 70, 229, 0.12);
+  }
+
+  .no-offices {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  .all-offices-badge {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #16A34A;
+    background: rgba(34, 197, 94, 0.06);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(34, 197, 94, 0.15);
+  }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(6px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 24px;
+    overflow-y: auto;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal-card {
+    background: white;
+    border-radius: var(--radius-2xl);
+    max-width: 560px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    animation: modalIn 0.3s ease;
+  }
+
+  @keyframes modalIn {
+    from { transform: scale(0.95) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px 16px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    font-family: var(--font-heading);
+  }
+
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-size: 0.9rem;
+  }
+
+  .modal-close:hover {
+    color: var(--color-danger);
+    background: rgba(239, 68, 68, 0.06);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  #adminForm {
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .form-select {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    font-family: var(--font-body);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: white;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-subtle);
+  }
+
+  /* Offices Grid */
+  .offices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .office-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .office-toggle input {
+    display: none;
+  }
+
+  .office-toggle-label {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: white;
+    color: var(--color-text-secondary);
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+
+  .office-toggle input:checked + .office-toggle-label {
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent);
+  }
+
+  .office-toggle-label:hover {
+    border-color: var(--color-border-hover);
+  }
+
+  .office-quick-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* Toggle row */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .toggle-info strong {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+  }
+
+  .toggle-info small {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #D1D5DB;
+    border-radius: 26px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(22px);
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 18px;
+  }
+
+  .required { color: var(--color-danger); }
+
+  /* ===== CONFIRM MODAL ===== */
+  .confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    z-index: 6000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 24px;
+  }
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+
+  .confirm-modal {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: 32px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    animation: modalIn 0.3s ease;
+  }
+
+  .confirm-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .confirm-modal h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+  .confirm-modal p { font-size: 0.88rem; color: var(--color-text-secondary); margin-bottom: 24px; line-height: 1.5; }
+
+  .confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .confirm-actions .btn {
+    padding: 10px 24px;
+    font-size: 0.85rem;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+
+  .btn-secondary {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+  .btn-secondary:hover { background: var(--color-border); }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #DC2626, #EF4444);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+  }
+  .btn-danger:hover { box-shadow: 0 6px 16px rgba(239,68,68,0.4); }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state-card {
+    text-align: center;
+    padding: 48px 24px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+  .empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 12px; }
+  .empty-state-card p { font-weight: 600; margin-bottom: 4px; }
+  .empty-state-card small { color: var(--color-text-muted); font-size: 0.85rem; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .users-stats { gap: 16px; }
+    .users-stat-value { font-size: 1.2rem; }
+    .btn-text-desktop { display: none; }
+    .btn-text-mobile { display: inline; }
+
+    .user-card { padding: 16px; }
+    .uc-avatar { width: 40px; height: 40px; font-size: 0.95rem; }
+    .uc-name-row { gap: 6px; }
+    .uc-name-row strong { font-size: 0.88rem; }
+
+    .modal-card { max-width: 100%; margin: 0; border-radius: var(--radius-xl); }
+    #adminForm { padding: 20px; }
+    .offices-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 480px) {
+    .users-header { flex-direction: column; align-items: stretch; }
+    .uc-header { flex-wrap: wrap; }
+    .uc-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
+    .offices-grid { grid-template-columns: 1fr; }
+  }
+</style>
