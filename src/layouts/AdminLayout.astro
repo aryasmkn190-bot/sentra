@@ -36,7 +36,7 @@ const userRole = adminUser?.role || 'admin';
   <aside class="admin-sidebar" id="adminSidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">
-        <div class="sidebar-logo-mark">S</div>
+        <img src="/logo.jpeg" alt="Sentra Logo" class="app-logo-sidebar" />
         <div>
           <h2>Sentra</h2>
           <span class="logo-subtitle">Admin Panel</span>
@@ -237,18 +237,11 @@ const userRole = adminUser?.role || 'admin';
     gap: 12px;
   }
 
-  .sidebar-logo-mark {
+  .app-logo-sidebar {
     width: 38px;
     height: 38px;
-    background: var(--gradient-primary);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-family: var(--font-heading);
-    font-weight: 900;
-    font-size: 1.1rem;
+    object-fit: cover;
+    border-radius: 8px;
     box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
     flex-shrink: 0;
   }

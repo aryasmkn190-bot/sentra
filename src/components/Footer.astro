@@ -6,8 +6,7 @@
     <div class="footer-inner">
       <div class="footer-brand">
         <div class="footer-logo">
-          <div class="logo-mark"><span>S</span></div>
-          <span class="logo-text">Sentra</span>
+          <img src="/logo.jpeg" alt="Sentra Logo" class="app-logo-footer" />
         </div>
         <p class="footer-desc">Partner kebutuhan harian terpercaya. Menyediakan kebutuhan harian dengan harga terjangkau.</p>
       </div>
@@ -52,28 +51,12 @@
     margin-bottom: var(--space-md);
   }
 
-  .footer .logo-mark {
-    width: 36px;
-    height: 36px;
-    background: var(--gradient-primary);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 1.1rem;
+  .app-logo-footer {
+    max-height: 48px;
+    width: auto;
+    object-fit: contain;
+    border-radius: 8px; /* Optional slight rounding for aesthetics */
   }
-
-  .footer .logo-text {
-    font-family: var(--font-heading);
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: white;
-  }
-
-  .footer .logo-dk { color: #818CF8; }
 
   .footer-desc {
     color: rgba(255,255,255,0.5);

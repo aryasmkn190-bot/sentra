@@ -4,10 +4,7 @@
 <header class="header">
   <div class="container header-inner">
     <a href="/" class="header-logo">
-      <div class="logo-mark">
-        <span>S</span>
-      </div>
-      <span class="logo-text">Sentra</span>
+      <img src="/logo.jpeg" alt="Sentra Logo" class="app-logo" />
     </a>
     <nav class="header-nav">
       <a href="/" class="header-link">Beranda</a>
@@ -33,8 +30,7 @@
 <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
 <div class="mobile-nav-drawer" id="mobileNavDrawer">
   <div class="mobile-nav-header">
-    <div class="logo-mark"><span>S</span></div>
-    <span class="logo-text">Sentra</span>
+    <img src="/logo.jpeg" alt="Sentra Logo" class="app-logo-mobile" />
     <button class="mobile-nav-close" id="mobileNavClose">✕</button>
   </div>
   <nav class="mobile-nav-links">
@@ -94,30 +90,16 @@
     text-decoration: none;
   }
 
-  .logo-mark {
-    width: 36px;
-    height: 36px;
-    background: var(--gradient-primary);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 1.1rem;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  .app-logo {
+    max-height: 48px;
+    width: auto;
+    object-fit: contain;
   }
 
-  .logo-text {
-    font-family: var(--font-heading);
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: var(--color-text-primary);
-  }
-
-  .logo-dk {
-    color: var(--color-accent);
+  .app-logo-mobile {
+    max-height: 40px;
+    width: auto;
+    object-fit: contain;
   }
 
   .header-nav {
