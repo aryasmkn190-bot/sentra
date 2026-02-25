@@ -335,6 +335,7 @@ const userRole = adminUser?.role || 'admin';
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    max-width: calc(100% - 260px);
   }
 
   .admin-header {
@@ -421,6 +422,7 @@ const userRole = adminUser?.role || 'admin';
     flex: 1;
     padding: 24px;
     animation: fadeIn 0.3s ease;
+    min-width: 0;
   }
 
   .mobile-menu-btn {
@@ -505,7 +507,11 @@ const userRole = adminUser?.role || 'admin';
     }
     .admin-sidebar.open { transform: translateX(0); }
     .sidebar-close-btn { display: flex; }
-    .admin-main { margin-left: 0; }
+    .admin-main {
+      margin-left: 0;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
     .mobile-menu-btn { display: flex; }
     .desktop-only { display: none; }
 
@@ -529,6 +535,8 @@ const userRole = adminUser?.role || 'admin';
     .admin-content {
       padding: 16px;
       padding-bottom: 80px; /* space for bottom nav */
+      overflow-x: hidden;
+      max-width: 100%;
     }
 
     .admin-header {
@@ -551,8 +559,8 @@ const userRole = adminUser?.role || 'admin';
   }
 
   @media (max-width: 480px) {
-    .admin-content { padding: 12px; padding-bottom: 80px; }
-    .admin-header { padding: 8px 12px; }
+    .admin-content { padding: 14px; padding-bottom: 80px; overflow-x: hidden; }
+    .admin-header { padding: 8px 14px; }
     .admin-page-title { font-size: 0.95rem; }
   }
 </style>

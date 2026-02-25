@@ -1295,27 +1295,42 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
   }
 
   @media (max-width: 768px) {
+    /* Search */
+    .search-bar {
+      margin-bottom: 12px;
+      max-width: 100%;
+    }
+
+    .search-input-wrapper {
+      max-width: 100%;
+    }
+
     .search-input {
       padding: 11px 40px 11px 42px;
       font-size: 0.84rem;
       border-radius: var(--radius-lg);
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .search-icon { left: 14px; }
     .search-clear-btn { right: 10px; }
 
+    /* Filters */
     .filters-bar {
       flex-direction: column;
       gap: 10px;
+      margin-bottom: 12px;
     }
 
-    .filters-right {
-      width: 100%;
-    }
+    .filters-left { width: 100%; }
+    .filters-right { width: 100%; }
 
     .kelompok-filter {
       width: 100%;
       border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 0.82rem;
     }
 
     .orders-filters {
@@ -1327,7 +1342,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
       margin-left: -16px;
       margin-right: -16px;
       padding-left: 16px;
-      padding-right: 16px;
+      padding-right: 32px;
     }
     .orders-filters::-webkit-scrollbar { display: none; }
 
@@ -1337,81 +1352,223 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
       flex-shrink: 0;
     }
 
+    /* Show/hide views */
     .desktop-view { display: none; }
     .mobile-view { display: block; }
 
+    /* Pagination */
     .pagination-bar {
       flex-direction: column;
-      gap: 12px;
-      padding: 12px 16px;
+      gap: 10px;
+      padding: 12px 14px;
       align-items: stretch;
       text-align: center;
+      margin-top: 14px;
     }
 
-    .pagination-left, .pagination-right {
+    .pagination-left {
       display: flex;
       justify-content: center;
+    }
+
+    .pagination-info {
+      font-size: 0.76rem;
     }
 
     .pagination-center {
       justify-content: center;
       flex-wrap: wrap;
+      gap: 3px;
+    }
+
+    .page-btn {
+      width: 32px;
+      height: 32px;
+    }
+
+    .page-num {
+      min-width: 30px;
+      height: 30px;
+      font-size: 0.78rem;
+    }
+
+    .pagination-right {
+      display: flex;
+      justify-content: center;
     }
 
     .per-page-select {
       width: 100%;
       text-align: center;
+      padding: 10px 12px;
+    }
+
+    /* Bulk bar */
+    .bulk-bar.visible {
+      padding: 10px 14px;
+      margin-bottom: 12px;
     }
 
     .bulk-bar-inner {
       flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .bulk-count { flex: none; }
-
-    /* Mobile order cards */
-    .order-card {
-      padding: 14px;
-      margin-bottom: 10px;
-      border-radius: var(--radius-lg);
-    }
-
-    .oc-header {
       gap: 8px;
     }
 
-    .oc-customer strong {
-      font-size: 0.88rem;
+    .bulk-count { flex: none; font-size: 0.78rem; }
+
+    .btn-danger-outline {
+      font-size: 0.75rem;
+      padding: 7px 12px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* ===== MOBILE ORDER CARDS ===== */
+    .order-card {
+      padding: 0;
+      margin-bottom: 12px;
+      border-radius: var(--radius-xl);
+      border-left: 4px solid var(--color-border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      max-width: 100%;
+      overflow: hidden;
       word-break: break-word;
     }
 
+    /* Status-colored left border */
+    .order-card[data-status="pending"]   { border-left-color: #F59E0B; }
+    .order-card[data-status="confirmed"] { border-left-color: #10B981; }
+    .order-card[data-status="processing"]{ border-left-color: #3B82F6; }
+    .order-card[data-status="completed"] { border-left-color: #8B5CF6; }
+    .order-card[data-status="cancelled"] { border-left-color: #EF4444; }
+
+    /* Hide status badge in header — status is shown via select at bottom */
+    .oc-header > .badge { display: none; }
+
+    .oc-header {
+      padding: 14px 16px 12px;
+      gap: 10px;
+      background: white;
+      border-bottom: none;
+    }
+
+    .oc-header-left {
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .oc-header-left input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+
+    .oc-customer {
+      min-width: 0;
+    }
+
+    .oc-customer strong {
+      font-size: 0.92rem;
+      font-weight: 700;
+      word-break: break-word;
+      display: block;
+      color: var(--color-text-primary);
+    }
+
+    .oc-customer .text-muted {
+      font-size: 0.76rem;
+      margin-top: 2px;
+    }
+
+    .oc-body {
+      padding: 4px 16px 12px;
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .oc-items small {
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--color-text-secondary);
+    }
+
+    .oc-footer {
+      padding: 0 16px 14px;
+    }
+
     .oc-meta-row {
-      gap: 6px;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding-bottom: 0;
     }
 
     .oc-meta-row code {
-      font-size: 0.68rem;
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      background: var(--color-bg-tertiary);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
     }
 
+    /* Total — right-aligned on its own row */
     .oc-action-row {
+      flex-direction: column;
+      align-items: stretch;
       gap: 10px;
     }
 
     .oc-total {
-      font-size: 0.95rem;
+      text-align: right;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--color-accent);
+      padding-bottom: 2px;
     }
 
-    .status-select-mobile {
-      padding: 8px 10px;
-      font-size: 0.78rem;
-      max-width: 130px;
+    /* Action buttons row */
+    .oc-action-btns {
+      display: flex;
+      gap: 0;
+      width: 100%;
     }
 
+    /* Hide delete button on mobile */
     .delete-btn-mobile {
-      width: 34px;
-      height: 34px;
+      display: none;
     }
+
+    /* Status select — full width, rounded pill style */
+    .status-select-mobile {
+      width: 100%;
+      max-width: none;
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: var(--radius-xl);
+      border: 1.5px solid var(--color-border);
+      background: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .status-select-mobile:focus {
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 3px var(--color-accent-subtle);
+      background-color: white;
+    }
+
+    /* No results */
+    .no-results-card, .empty-state-card {
+      padding: 36px 20px;
+    }
+    .empty-icon { font-size: 2rem; }
 
     /* Confirm modal mobile */
     .confirm-overlay {
@@ -1440,37 +1597,51 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
     }
   }
 
-  @media (max-width: 380px) {
-    .order-card {
-      padding: 12px;
+  @media (max-width: 480px) {
+    .page-btn {
+      width: 30px;
+      height: 30px;
+    }
+
+    .page-num {
+      min-width: 28px;
+      height: 28px;
+      font-size: 0.75rem;
     }
 
     .oc-header {
-      flex-direction: column;
-      gap: 8px;
+      padding: 12px 14px 10px;
     }
 
-    .oc-header-left {
-      width: 100%;
+    .oc-footer {
+      padding: 0 14px 12px;
     }
 
-    .oc-action-row {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 10px;
-    }
-
-    .oc-total {
-      text-align: center;
-    }
-
-    .oc-action-btns {
-      justify-content: stretch;
+    .oc-body {
+      padding: 4px 14px 10px;
     }
 
     .status-select-mobile {
-      flex: 1;
-      max-width: none;
+      padding: 11px 14px;
+      font-size: 0.82rem;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .order-card {
+      border-radius: var(--radius-lg);
+    }
+
+    .oc-header {
+      padding: 10px 12px 8px;
+    }
+
+    .oc-body {
+      padding: 4px 12px 8px;
+    }
+
+    .oc-footer {
+      padding: 0 12px 10px;
     }
 
     .oc-meta-row {
@@ -1485,7 +1656,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
     }
 
     .bulk-bar.visible {
-      padding: 10px 14px;
+      padding: 10px 12px;
     }
 
     .bulk-select-all-label {
@@ -1496,5 +1667,17 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
       font-size: 0.72rem;
       padding: 6px 10px;
     }
+
+    .search-input {
+      font-size: 0.8rem;
+      padding: 10px 36px 10px 38px;
+    }
+
+    .pagination-center {
+      gap: 2px;
+    }
+
+    .page-btn { width: 28px; height: 28px; }
+    .page-num { min-width: 26px; height: 26px; font-size: 0.72rem; }
   }
 </style>
