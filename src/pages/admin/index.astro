@@ -14,6 +14,8 @@ let stats = {
   todayOrders: 0,
   totalProducts: 0,
   totalRevenue: 0,
+  pendingRevenue: 0,
+  confirmedRevenue: 0,
 };
 
 let recentOrders: any[] = [];
@@ -35,9 +37,13 @@ try {
   stats.totalOrders = allOrders.length;
   stats.todayOrders = allOrders.filter(o => new Date(o.createdAt) >= today).length;
   stats.totalProducts = allProducts.length;
-  stats.totalRevenue = allOrders
-    .filter(o => o.status !== 'cancelled')
+  stats.pendingRevenue = allOrders
+    .filter(o => o.status === 'pending')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  stats.confirmedRevenue = allOrders
+    .filter(o => o.status === 'confirmed')
+    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  stats.totalRevenue = stats.pendingRevenue + stats.confirmedRevenue;
   
   recentOrders = allOrders.slice(0, 10);
 
@@ -122,12 +128,30 @@ const statusLabels: Record<string, string> = {
       </div>
     </div>
     <div class="stat-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B, #FCD34D);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value stat-value-sm">Rp {stats.pendingRevenue.toLocaleString('id-ID')}</span>
+        <span class="stat-label">⏳ Menunggu</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #10B981, #34D399);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value stat-value-sm">Rp {stats.confirmedRevenue.toLocaleString('id-ID')}</span>
+        <span class="stat-label">✅ Dikonfirmasi</span>
+      </div>
+    </div>
+    <div class="stat-card stat-card-total">
       <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       </div>
       <div class="stat-info">
         <span class="stat-value stat-value-sm">Rp {stats.totalRevenue.toLocaleString('id-ID')}</span>
-        <span class="stat-label">Pendapatan</span>
+        <span class="stat-label">💰 Total Pendapatan</span>
       </div>
     </div>
   </div>
@@ -481,7 +505,7 @@ const statusLabels: Record<string, string> = {
 <style>
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-bottom: 24px;
   }
@@ -503,6 +527,13 @@ const statusLabels: Record<string, string> = {
   .stat-card:nth-child(2) { animation-delay: 0.1s; }
   .stat-card:nth-child(3) { animation-delay: 0.15s; }
   .stat-card:nth-child(4) { animation-delay: 0.2s; }
+  .stat-card:nth-child(5) { animation-delay: 0.25s; }
+  .stat-card:nth-child(6) { animation-delay: 0.3s; }
+
+  .stat-card-total {
+    border: 1.5px solid rgba(139, 92, 246, 0.25);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.03), rgba(167, 139, 250, 0.06));
+  }
 
   .stat-card:hover {
     box-shadow: var(--shadow-card-hover);
@@ -1198,7 +1229,7 @@ const statusLabels: Record<string, string> = {
 
   /* ===== RESPONSIVE ===== */
   @media (max-width: 1024px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
   @media (max-width: 768px) {
