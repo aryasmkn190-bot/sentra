@@ -18,6 +18,7 @@ let stats = {
 
 let recentOrders: any[] = [];
 let itemBreakdown: Record<string, { name: string; type: string; quantity: number; revenue: number }> = {};
+let pendingOrders: any[] = [];
 
 try {
   let allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
@@ -40,9 +41,12 @@ try {
   
   recentOrders = allOrders.slice(0, 10);
 
-  // Build per-item breakdown from non-cancelled orders
-  const activeOrders = allOrders.filter(o => o.status !== 'cancelled');
-  for (const order of activeOrders) {
+  // Pending orders for follow-up
+  pendingOrders = allOrders.filter(o => o.status === 'pending');
+
+  // Build per-item breakdown from CONFIRMED orders only (for product preparation)
+  const confirmedOrders = allOrders.filter(o => o.status === 'confirmed');
+  for (const order of confirmedOrders) {
     const items = (order.items as any[]) || [];
     for (const item of items) {
       const key = item.productName || 'Unknown';
@@ -140,13 +144,14 @@ const statusLabels: Record<string, string> = {
     )}
   </div>
 
-  <!-- Item Breakdown Section -->
+  <!-- Item Breakdown: Confirmed Orders Only (for preparation) -->
   {(satuanItems.length > 0 || paketItems.length > 0) && (
     <div class="dashboard-section item-breakdown-section">
       <div class="section-header-row">
-        <h2>🛒 Rekap Pesanan Per Item</h2>
-        <span class="section-badge">{totalSatuanQty + totalPaketQty} item total</span>
+        <h2>📋 Rekap Item Dikonfirmasi</h2>
+        <span class="section-badge section-badge-confirmed">✅ {totalSatuanQty + totalPaketQty} item siap disiapkan</span>
       </div>
+      <p class="section-desc">Daftar item dari pesanan yang sudah <strong>dikonfirmasi</strong> — siapkan produk berikut:</p>
 
       <!-- Satuan Items -->
       {satuanItems.length > 0 && (
@@ -206,6 +211,130 @@ const statusLabels: Record<string, string> = {
       )}
     </div>
   )}
+
+  <!-- Pending Orders for Follow-Up -->
+  <div class="dashboard-section pending-section">
+    <div class="section-header-row">
+      <h2>⏳ Pesanan Menunggu Follow Up</h2>
+      <span class="section-badge section-badge-pending">{pendingOrders.length} pesanan</span>
+    </div>
+    {pendingOrders.length > 0 ? (
+      <>
+        <p class="section-desc">Pesanan berikut masih berstatus <strong>menunggu</strong> — hubungi pelanggan untuk konfirmasi pembayaran.</p>
+        <div class="followup-tip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>💡 <strong>Tips:</strong> Disarankan mengirim follow up <strong>maksimal 1 kali per hari</strong> untuk setiap pelanggan agar tidak mengganggu.</span>
+        </div>
+
+        {/* Desktop Table */}
+        <div class="table-wrapper desktop-table">
+          <table class="table pending-table">
+            <thead>
+              <tr>
+                <th>Pelanggan</th>
+                <th>WhatsApp</th>
+                <th>Kantor</th>
+                <th>Item Pesanan</th>
+                <th>Total</th>
+                <th>Waktu Order</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingOrders.map((order) => (
+                <tr>
+                  <td>
+                    <strong>{order.customerName}</strong>
+                    <br/><small class="text-muted"><code>{order.orderNumber}</code></small>
+                  </td>
+                  <td>
+                    <span class="wa-number">{order.whatsappNumber}</span>
+                  </td>
+                  <td><span class="badge badge-neutral">{order.kelompok}</span></td>
+                  <td>
+                    <div class="items-mini">
+                      {(order.items as any[] || []).map((item: any) => (
+                        <small>• {item.productName} ×{item.quantity}</small>
+                      ))}
+                    </div>
+                  </td>
+                  <td class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></td>
+                  <td class="text-muted" style="white-space:nowrap;">
+                    {new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td>
+                    <button class="wa-followup-btn" data-order-id={order.id} data-customer-name={order.customerName}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      <span class="followup-btn-text">Follow Up</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div class="mobile-orders-list">
+          {pendingOrders.map((order) => (
+            <div class="pending-card">
+              <div class="pending-card-header">
+                <div class="pending-card-customer">
+                  <strong>{order.customerName}</strong>
+                  <span class="text-muted">{order.whatsappNumber}</span>
+                </div>
+                <span class="badge badge-warning">Menunggu</span>
+              </div>
+              <div class="pending-card-items">
+                {(order.items as any[] || []).map((item: any) => (
+                  <small>• {item.productName} ×{item.quantity}</small>
+                ))}
+              </div>
+              <div class="pending-card-footer">
+                <div class="pending-card-meta">
+                  <code>{order.orderNumber}</code>
+                  <span class="badge badge-neutral">{order.kelompok}</span>
+                  <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+                </div>
+                <div class="pending-card-action">
+                  <span class="pending-card-total">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+                  <button class="wa-followup-btn-mobile" data-order-id={order.id} data-customer-name={order.customerName}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    <span class="followup-btn-text">Follow Up</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div class="empty-state-card pending-empty">
+        <div class="empty-icon">🎉</div>
+        <p>Semua pesanan sudah ditindaklanjuti!</p>
+        <small>Tidak ada pesanan menunggu saat ini</small>
+      </div>
+    )}
+  </div>
+
+  <!-- Follow Up Success Modal -->
+  <div class="followup-overlay" id="followupOverlay">
+    <div class="followup-modal">
+      <div class="followup-checkmark-wrap">
+        <svg class="followup-checkmark" viewBox="0 0 52 52">
+          <circle class="followup-checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="followup-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h3 id="followupModalTitle">Pesan Terkirim!</h3>
+      <p id="followupModalDesc">Pesan follow up berhasil dikirim ke <strong id="followupCustomerName"></strong> melalui WhatsApp.</p>
+      <div class="followup-modal-tip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>Hindari mengirim follow up lebih dari 1 kali dalam sehari agar pelanggan tidak terganggu.</span>
+      </div>
+      <button class="followup-modal-close-btn" id="followupModalClose">Mengerti</button>
+    </div>
+  </div>
 
   <!-- Recent Orders -->
   <div class="dashboard-section">
@@ -287,6 +416,67 @@ const statusLabels: Record<string, string> = {
     )}
   </div>
 </AdminLayout>
+
+<script>
+  // ===== FOLLOW UP VIA API =====
+  document.querySelectorAll<HTMLButtonElement>('.wa-followup-btn, .wa-followup-btn-mobile').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const orderId = btn.dataset.orderId || '';
+      const customerName = btn.dataset.customerName || '';
+      const textEl = btn.querySelector('.followup-btn-text');
+
+      // Loading state
+      btn.disabled = true;
+      btn.classList.add('sending');
+      if (textEl) textEl.textContent = 'Mengirim...';
+
+      try {
+        const res = await fetch('/api/followup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: parseInt(orderId) }),
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          // Show success modal
+          showFollowupSuccess(result.customerName || customerName);
+          // Mark button as sent
+          btn.classList.remove('sending');
+          btn.classList.add('sent');
+          if (textEl) textEl.textContent = 'Terkirim ✓';
+        } else {
+          btn.classList.remove('sending');
+          btn.disabled = false;
+          if (textEl) textEl.textContent = 'Follow Up';
+          (window as any).showToast?.(result.message || 'Gagal mengirim pesan', 'error');
+        }
+      } catch {
+        btn.classList.remove('sending');
+        btn.disabled = false;
+        if (textEl) textEl.textContent = 'Follow Up';
+        (window as any).showToast?.('Terjadi kesalahan jaringan', 'error');
+      }
+    });
+  });
+
+  // Success modal
+  function showFollowupSuccess(name: string) {
+    const overlay = document.getElementById('followupOverlay');
+    const nameEl = document.getElementById('followupCustomerName');
+    if (nameEl) nameEl.textContent = name;
+    overlay?.classList.add('open');
+  }
+
+  function hideFollowupModal() {
+    document.getElementById('followupOverlay')?.classList.remove('open');
+  }
+
+  document.getElementById('followupModalClose')?.addEventListener('click', hideFollowupModal);
+  document.getElementById('followupOverlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) hideFollowupModal();
+  });
+</script>
 
 <style>
   .stats-grid {
@@ -446,6 +636,17 @@ const statusLabels: Record<string, string> = {
     margin-bottom: 28px;
   }
 
+  .section-desc {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .section-desc strong {
+    color: var(--color-text-primary);
+  }
+
   .section-badge {
     font-size: 0.72rem;
     font-weight: 700;
@@ -454,6 +655,18 @@ const statusLabels: Record<string, string> = {
     background: var(--color-accent-subtle);
     color: var(--color-accent);
     border: 1px solid rgba(79, 70, 229, 0.12);
+  }
+
+  .section-badge-confirmed {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+
+  .section-badge-pending {
+    background: rgba(245, 158, 11, 0.1);
+    color: #D97706;
+    border-color: rgba(245, 158, 11, 0.2);
   }
 
   .breakdown-group {
@@ -632,6 +845,357 @@ const statusLabels: Record<string, string> = {
     font-weight: 600;
   }
 
+  /* ===== PENDING ORDERS SECTION ===== */
+  .pending-section {
+    margin-top: 28px;
+    animation-delay: 0.3s !important;
+  }
+
+  .pending-table td { vertical-align: middle; }
+
+  .wa-number {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  .items-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-width: 220px;
+  }
+  .items-mini small {
+    font-size: 0.73rem;
+    color: var(--color-text-muted);
+  }
+
+  /* Followup tip banner */
+  .followup-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.12));
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .followup-tip svg {
+    flex-shrink: 0;
+    color: #D97706;
+    margin-top: 1px;
+  }
+
+  .followup-tip strong {
+    color: #92400E;
+  }
+
+  .wa-followup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: #25D366;
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+  }
+
+  .wa-followup-btn:hover:not(:disabled) {
+    background: #1DA851;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .wa-followup-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .wa-followup-btn.sending {
+    background: #6B7280;
+    box-shadow: none;
+    animation: pulse-btn 1.2s ease-in-out infinite;
+  }
+
+  .wa-followup-btn.sent {
+    background: #059669;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+  }
+
+  @keyframes pulse-btn {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  /* Pending mobile cards */
+  .pending-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid #F59E0B;
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+
+  .pending-card:hover {
+    border-color: var(--color-border-hover);
+    border-left-color: #D97706;
+  }
+
+  .pending-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .pending-card-customer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pending-card-customer strong { font-size: 0.9rem; }
+  .pending-card-customer .text-muted { font-size: 0.75rem; }
+
+  .pending-card-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 10px;
+  }
+
+  .pending-card-items small {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .pending-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pending-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .pending-card-action {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .pending-card-total {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--color-accent);
+  }
+
+  .wa-followup-btn-mobile {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #25D366;
+    color: white;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+  }
+
+  .wa-followup-btn-mobile:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .wa-followup-btn-mobile.sending {
+    background: #6B7280;
+    box-shadow: none;
+    animation: pulse-btn 1.2s ease-in-out infinite;
+  }
+
+  .wa-followup-btn-mobile.sent {
+    background: #059669;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+  }
+
+  .wa-followup-btn-mobile:hover:not(:disabled) {
+    background: #1DA851;
+  }
+
+  .pending-empty {
+    border-left: 4px solid #22C55E;
+  }
+
+  /* ===== FOLLOW UP SUCCESS MODAL ===== */
+  .followup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    padding: 24px;
+  }
+
+  .followup-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .followup-modal {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: 36px 32px 28px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+    transform: scale(0.85) translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .followup-overlay.open .followup-modal {
+    transform: scale(1) translateY(0);
+  }
+
+  /* Animated Checkmark */
+  .followup-checkmark-wrap {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+  }
+
+  .followup-checkmark {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+  }
+
+  .followup-checkmark-circle {
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    stroke-width: 2;
+    stroke-miterlimit: 10;
+    stroke: #25D366;
+    fill: none;
+  }
+
+  .followup-overlay.open .followup-checkmark-circle {
+    animation: checkmark-stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.15s forwards;
+  }
+
+  .followup-checkmark-check {
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke: #25D366;
+  }
+
+  .followup-overlay.open .followup-checkmark-check {
+    animation: checkmark-stroke 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.55s forwards;
+  }
+
+  @keyframes checkmark-stroke {
+    100% { stroke-dashoffset: 0; }
+  }
+
+  .followup-modal h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+  }
+
+  .followup-modal p {
+    font-size: 0.88rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .followup-modal p strong {
+    color: var(--color-accent);
+  }
+
+  .followup-modal-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    text-align: left;
+  }
+
+  .followup-modal-tip svg {
+    flex-shrink: 0;
+    color: #D97706;
+    margin-top: 1px;
+  }
+
+  .followup-modal-tip span {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+
+  .followup-modal-close-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--gradient-primary);
+    color: white;
+    font-size: 0.88rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-accent);
+  }
+
+  .followup-modal-close-btn:hover {
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+    transform: translateY(-1px);
+  }
+
   /* ===== RESPONSIVE ===== */
   @media (max-width: 1024px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -665,6 +1229,9 @@ const statusLabels: Record<string, string> = {
     .item-bar-track { margin-left: 0; }
     .item-rank { display: none; }
     .paket-breakdown-grid { grid-template-columns: 1fr 1fr; }
+
+    .pending-card-meta code { font-size: 0.68rem; }
+    .pending-card-action { gap: 10px; }
   }
 
   @media (max-width: 380px) {

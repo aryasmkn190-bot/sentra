@@ -44,6 +44,23 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
 ---
 
 <AdminLayout title="Kelola Pesanan" activeMenu="orders">
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" class="search-input" id="searchInput" placeholder="Cari nama, no. order, atau no. WA..." autocomplete="off" />
+      <button class="search-clear-btn" id="searchClearBtn" title="Hapus pencarian" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="search-result-info" id="searchResultInfo" style="display:none;"></div>
+  </div>
+
   <!-- Filters Row -->
   <div class="filters-bar">
     <div class="filters-left">
@@ -201,6 +218,42 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
           </div>
         ))}
       </div>
+      <!-- No Results Message -->
+      <div class="no-results-card" id="noResultsCard" style="display:none;">
+        <div class="empty-icon">🔍</div>
+        <p>Tidak ada pesanan ditemukan</p>
+        <small>Coba ubah kata kunci pencarian atau filter</small>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="pagination-bar" id="paginationBar">
+        <div class="pagination-left">
+          <span class="pagination-info" id="paginationInfo"></span>
+        </div>
+        <div class="pagination-center">
+          <button class="page-btn" id="pageFirst" title="Halaman pertama">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+          </button>
+          <button class="page-btn" id="pagePrev" title="Sebelumnya">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="page-numbers" id="pageNumbers"></div>
+          <button class="page-btn" id="pageNext" title="Berikutnya">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="page-btn" id="pageLast" title="Halaman terakhir">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          </button>
+        </div>
+        <div class="pagination-right">
+          <select class="per-page-select" id="perPageSelect">
+            <option value="10">10 / hal</option>
+            <option value="25" selected>25 / hal</option>
+            <option value="50">50 / hal</option>
+            <option value="0">Semua</option>
+          </select>
+        </div>
+      </div>
     </>
   ) : (
     <div class="empty-state-card">
@@ -228,8 +281,23 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
   // ===== STATE =====
   let activeStatusFilter = 'all';
   let activeKelompokFilter = 'all';
+  let searchQuery = '';
   let selectedIds = new Set();
   let pendingDeleteIds = [];
+  let currentPage = 1;
+  let perPage = 25;
+
+  // ===== SEARCH LOGIC =====
+  function getSearchableText(el) {
+    return (el.textContent || '').toLowerCase();
+  }
+
+  function matchesSearch(el) {
+    if (!searchQuery) return true;
+    const text = getSearchableText(el);
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    return terms.every(term => text.includes(term));
+  }
 
   // ===== FILTER LOGIC =====
   function isRowVisible(el) {
@@ -237,20 +305,197 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
     const kelompok = el.dataset.kelompok;
     const matchStatus = activeStatusFilter === 'all' || status === activeStatusFilter;
     const matchKelompok = activeKelompokFilter === 'all' || kelompok === activeKelompokFilter;
-    return matchStatus && matchKelompok;
+    return matchStatus && matchKelompok && matchesSearch(el);
+  }
+
+  function getFilteredElements(selector) {
+    return [...document.querySelectorAll(selector)].filter(el => isRowVisible(el));
   }
 
   function applyFilters() {
-    // Desktop
-    document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
-      row.style.display = isRowVisible(row) ? '' : 'none';
+    const desktopRows = [...document.querySelectorAll('#ordersTable tbody tr')];
+    const mobileCards = [...document.querySelectorAll('.order-card')];
+
+    // First pass: mark filtered (matching filters + search)
+    const filteredDesktop = desktopRows.filter(r => isRowVisible(r));
+    const filteredMobile = mobileCards.filter(c => isRowVisible(c));
+    const totalFiltered = filteredDesktop.length;
+
+    // Calculate pagination
+    const effectivePerPage = perPage === 0 ? totalFiltered : perPage;
+    const totalPages = effectivePerPage > 0 ? Math.max(1, Math.ceil(totalFiltered / effectivePerPage)) : 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * effectivePerPage;
+    const endIndex = perPage === 0 ? totalFiltered : startIndex + effectivePerPage;
+
+    // Apply visibility: Desktop
+    let visibleIdx = 0;
+    desktopRows.forEach(row => {
+      if (isRowVisible(row)) {
+        const inPage = visibleIdx >= startIndex && visibleIdx < endIndex;
+        row.style.display = inPage ? '' : 'none';
+        row.dataset.paginated = inPage ? 'true' : 'false';
+        visibleIdx++;
+      } else {
+        row.style.display = 'none';
+        row.dataset.paginated = 'false';
+      }
     });
-    // Mobile
-    document.querySelectorAll('.order-card').forEach(card => {
-      card.style.display = isRowVisible(card) ? '' : 'none';
+
+    // Apply visibility: Mobile
+    visibleIdx = 0;
+    mobileCards.forEach(card => {
+      if (isRowVisible(card)) {
+        const inPage = visibleIdx >= startIndex && visibleIdx < endIndex;
+        card.style.display = inPage ? '' : 'none';
+        card.dataset.paginated = inPage ? 'true' : 'false';
+        visibleIdx++;
+      } else {
+        card.style.display = 'none';
+        card.dataset.paginated = 'false';
+      }
     });
+
+    // Update pagination UI
+    updatePagination(totalFiltered, totalPages, startIndex, endIndex);
+
+    // Show/hide no results
+    const noResultsCard = document.getElementById('noResultsCard');
+    if (noResultsCard) {
+      noResultsCard.style.display = totalFiltered === 0 ? '' : 'none';
+    }
+
+    // Update search result info
+    const searchInfo = document.getElementById('searchResultInfo');
+    if (searchInfo) {
+      if (searchQuery) {
+        searchInfo.style.display = '';
+        searchInfo.textContent = `${totalFiltered} hasil ditemukan untuk "${searchQuery}"`;
+      } else {
+        searchInfo.style.display = 'none';
+      }
+    }
+
     updateBulkBar();
   }
+
+  // ===== PAGINATION =====
+  function updatePagination(totalFiltered, totalPages, startIndex, endIndex) {
+    const paginationBar = document.getElementById('paginationBar');
+    if (!paginationBar) return;
+
+    // Info text
+    const infoEl = document.getElementById('paginationInfo');
+    if (infoEl) {
+      if (totalFiltered === 0) {
+        infoEl.textContent = '0 pesanan';
+      } else {
+        const showEnd = Math.min(endIndex, totalFiltered);
+        infoEl.textContent = `${startIndex + 1}–${showEnd} dari ${totalFiltered} pesanan`;
+      }
+    }
+
+    // Page numbers
+    const pageNumContainer = document.getElementById('pageNumbers');
+    if (pageNumContainer) {
+      pageNumContainer.innerHTML = '';
+      const maxVisible = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+      if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+
+      if (startPage > 1) {
+        const dots = document.createElement('span');
+        dots.className = 'page-dots';
+        dots.textContent = '...';
+        pageNumContainer.appendChild(dots);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'page-num' + (i === currentPage ? ' active' : '');
+        btn.textContent = i.toString();
+        btn.addEventListener('click', () => {
+          currentPage = i;
+          applyFilters();
+          scrollToTop();
+        });
+        pageNumContainer.appendChild(btn);
+      }
+
+      if (endPage < totalPages) {
+        const dots = document.createElement('span');
+        dots.className = 'page-dots';
+        dots.textContent = '...';
+        pageNumContainer.appendChild(dots);
+      }
+    }
+
+    // Button states
+    const firstBtn = document.getElementById('pageFirst');
+    const prevBtn = document.getElementById('pagePrev');
+    const nextBtn = document.getElementById('pageNext');
+    const lastBtn = document.getElementById('pageLast');
+
+    if (firstBtn) firstBtn.disabled = currentPage <= 1;
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+    if (lastBtn) lastBtn.disabled = currentPage >= totalPages;
+
+    // Hide pagination if only 1 page and showing all
+    paginationBar.style.display = (totalPages <= 1 && perPage === 0) ? 'none' : '';
+  }
+
+  function scrollToTop() {
+    document.querySelector('.search-bar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Pagination button events
+  document.getElementById('pageFirst')?.addEventListener('click', () => { currentPage = 1; applyFilters(); scrollToTop(); });
+  document.getElementById('pagePrev')?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; applyFilters(); scrollToTop(); } });
+  document.getElementById('pageNext')?.addEventListener('click', () => { currentPage++; applyFilters(); scrollToTop(); });
+  document.getElementById('pageLast')?.addEventListener('click', () => {
+    const totalFiltered = getFilteredElements('#ordersTable tbody tr').length;
+    const effectivePerPage = perPage === 0 ? totalFiltered : perPage;
+    currentPage = Math.max(1, Math.ceil(totalFiltered / effectivePerPage));
+    applyFilters();
+    scrollToTop();
+  });
+
+  // Per page change
+  document.getElementById('perPageSelect')?.addEventListener('change', (e) => {
+    perPage = parseInt(e.target.value);
+    currentPage = 1;
+    applyFilters();
+  });
+
+  // ===== SEARCH EVENTS =====
+  let searchTimeout;
+  const searchInput = document.getElementById('searchInput');
+  const searchClearBtn = document.getElementById('searchClearBtn');
+
+  searchInput?.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      searchQuery = e.target.value.trim();
+      currentPage = 1;
+      applyFilters();
+      if (searchClearBtn) searchClearBtn.style.display = searchQuery ? '' : 'none';
+    }, 250);
+  });
+
+  searchClearBtn?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    searchQuery = '';
+    currentPage = 1;
+    if (searchClearBtn) searchClearBtn.style.display = 'none';
+    applyFilters();
+    searchInput?.focus();
+  });
 
   // Status filter chips
   document.querySelectorAll('.filter-chip').forEach(btn => {
@@ -258,6 +503,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
       document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeStatusFilter = btn.dataset.filter;
+      currentPage = 1;
       applyFilters();
     });
   });
@@ -265,6 +511,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
   // Kelompok filter
   document.getElementById('kelompokFilter')?.addEventListener('change', (e) => {
     activeKelompokFilter = e.target.value;
+    currentPage = 1;
     applyFilters();
   });
 
@@ -272,7 +519,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
   function getVisibleCheckboxes() {
     return [...document.querySelectorAll('.order-checkbox')].filter(cb => {
       const container = cb.closest('[data-status]');
-      return container && container.style.display !== 'none';
+      return container && container.style.display !== 'none' && container.dataset.paginated === 'true';
     });
   }
 
@@ -395,7 +642,8 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
           selectedIds.delete(id);
         });
         window.showToast?.(`${result.deleted} pesanan dihapus`);
-        updateBulkBar();
+        // Re-apply filters after deletion to fix pagination
+        setTimeout(() => applyFilters(), 350);
       } else {
         window.showToast?.(result.message || 'Gagal menghapus', 'error');
       }
@@ -428,9 +676,94 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
       } catch { window.showToast?.('Terjadi kesalahan', 'error'); }
     });
   });
+
+  // ===== INITIAL RENDER =====
+  applyFilters();
 </script>
 
 <style>
+  /* ===== SEARCH BAR ===== */
+  .search-bar {
+    margin-bottom: 16px;
+  }
+
+  .search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 12px 44px 12px 46px;
+    font-size: 0.88rem;
+    font-family: var(--font-body);
+    font-weight: 500;
+    background: white;
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-xl);
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .search-input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px var(--color-accent-subtle), var(--shadow-sm);
+  }
+
+  .search-input:focus ~ .search-icon,
+  .search-input:not(:placeholder-shown) ~ .search-icon {
+    /* icon color hint when active - won't work with sibling since icon is before; handled via JS */
+  }
+
+  .search-input-wrapper:focus-within .search-icon {
+    color: var(--color-accent);
+  }
+
+  .search-clear-btn {
+    position: absolute;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--color-bg-tertiary);
+    border: none;
+    border-radius: 50%;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .search-clear-btn:hover {
+    background: var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  .search-result-info {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin-top: 8px;
+    padding-left: 4px;
+    font-weight: 500;
+  }
+
   /* ===== FILTERS BAR ===== */
   .filters-bar {
     display: flex;
@@ -638,7 +971,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
   }
   .status-select:focus, .status-select-mobile:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-subtle); }
 
-  .empty-state-card {
+  .empty-state-card, .no-results-card {
     text-align: center;
     padding: 48px 24px;
     background: white;
@@ -647,7 +980,8 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
     box-shadow: var(--shadow-card);
   }
   .empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 12px; }
-  .empty-state-card p { font-weight: 600; color: var(--color-text-secondary); }
+  .empty-state-card p, .no-results-card p { font-weight: 600; color: var(--color-text-secondary); }
+  .no-results-card small { color: var(--color-text-muted); }
 
   code {
     font-size: 0.73rem;
@@ -655,6 +989,132 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
     padding: 2px 8px;
     border-radius: var(--radius-sm);
     font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  /* ===== PAGINATION ===== */
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 20px;
+    padding: 14px 20px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xs);
+    flex-wrap: wrap;
+  }
+
+  .pagination-left { flex-shrink: 0; }
+
+  .pagination-info {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .pagination-center {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+  }
+
+  .page-btn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+  }
+
+  .page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .page-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .page-num:hover {
+    background: var(--color-bg-tertiary);
+    border-color: var(--color-border);
+  }
+
+  .page-num.active {
+    background: var(--gradient-primary);
+    color: white;
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-accent);
+    cursor: default;
+  }
+
+  .page-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 34px;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .pagination-right { flex-shrink: 0; }
+
+  .per-page-select {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-family: var(--font-body);
+    font-weight: 600;
+    background: white;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s;
+  }
+
+  .per-page-select:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-subtle);
   }
 
   /* ===== CONFIRM MODAL ===== */
@@ -835,6 +1295,15 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
   }
 
   @media (max-width: 768px) {
+    .search-input {
+      padding: 11px 40px 11px 42px;
+      font-size: 0.84rem;
+      border-radius: var(--radius-lg);
+    }
+
+    .search-icon { left: 14px; }
+    .search-clear-btn { right: 10px; }
+
     .filters-bar {
       flex-direction: column;
       gap: 10px;
@@ -870,6 +1339,29 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
 
     .desktop-view { display: none; }
     .mobile-view { display: block; }
+
+    .pagination-bar {
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 16px;
+      align-items: stretch;
+      text-align: center;
+    }
+
+    .pagination-left, .pagination-right {
+      display: flex;
+      justify-content: center;
+    }
+
+    .pagination-center {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .per-page-select {
+      width: 100%;
+      text-align: center;
+    }
 
     .bulk-bar-inner {
       flex-wrap: wrap;
