@@ -29,6 +29,7 @@ function formatFollowUpMessage(order: {
 
     message += `\n💰 *Total: Rp ${order.totalAmount.toLocaleString('id-ID')}*\n\n`;
     message += `⏳ masih menunggu konfirmasi. Silakan lakukan pembayaran agar pesanan dapat diproses. Terima kasih! 😊\n\n`;
+    message += `📌 _Abaikan pesan ini jika Anda sudah melakukan pembayaran._\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `🤖 _Pesan ini dikirim otomatis oleh sistem *Sentra*._`;
 
