@@ -345,32 +345,34 @@ const statusLabels: Record<string, string> = {
 
         {/* Mobile Cards */}
         <div id="pendingMobileContainer" class="mobile-orders-list">
-          {pendingOrders.slice(0, 5).map((order) => (
+           {pendingOrders.slice(0, 5).map((order) => (
             <div class="pending-card">
-              <div class="pending-card-header">
-                <div class="pending-card-customer">
-                  <strong>{order.customerName}</strong>
-                  <span class="text-muted">{order.whatsappNumber}</span>
+              <div class="pending-card-body">
+                <div class="pending-card-header">
+                  <div class="pending-card-customer">
+                    <strong>{order.customerName}</strong>
+                    <span class="text-muted">{order.whatsappNumber}</span>
+                  </div>
+                  <span class="badge badge-warning">Menunggu</span>
                 </div>
-                <span class="badge badge-warning">Menunggu</span>
-              </div>
-              <div class="pending-card-items">
-                {(order.items as any[] || []).map((item: any) => (
-                  <small>• {item.productName} ×{item.quantity}</small>
-                ))}
-              </div>
-              <div class="pending-card-footer">
-                <div class="pending-card-meta">
-                  <code>{order.orderNumber}</code>
-                  <span class="badge badge-neutral">{order.kelompok}</span>
-                  <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+                <div class="pending-card-items">
+                  {(order.items as any[] || []).map((item: any) => (
+                    <small>• {item.productName} ×{item.quantity}</small>
+                  ))}
                 </div>
-                <div class="pending-card-action">
-                  <span class="pending-card-total">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>
-                  <button class="wa-followup-btn-mobile" data-order-id={order.id} data-customer-name={order.customerName}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    <span class="followup-btn-text">Follow Up</span>
-                  </button>
+                <div class="pending-card-footer">
+                  <div class="pending-card-meta">
+                    <code>{order.orderNumber}</code>
+                    <span class="badge badge-neutral">{order.kelompok}</span>
+                    <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+                  </div>
+                  <div class="pending-card-action">
+                    <span class="pending-card-total">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+                    <button class="wa-followup-btn-mobile" data-order-id={order.id} data-customer-name={order.customerName}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      <span class="followup-btn-text">Follow Up</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -412,12 +414,20 @@ const statusLabels: Record<string, string> = {
   </div>
 
   <!-- Recent Orders -->
-  <!-- Recent Orders -->
   <div class="dashboard-section recent-section">
-    <div class="section-header-row">
-      <h2>🆕 Pesanan Terbaru</h2>
-      <a href="/admin/orders" class="btn btn-secondary btn-sm">Lihat Semua →</a>
-    </div>
+    <div class="modern-section-card">
+      <div class="msc-header">
+        <div class="msc-title-wrap">
+          <div class="msc-icon" style="background: linear-gradient(135deg, #6366F1, #8B5CF6);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
+          <div>
+            <h2 class="msc-title">Pesanan Terbaru</h2>
+            <p class="msc-subtitle">Semua pesanan masuk terbaru</p>
+          </div>
+        </div>
+        <a href="/admin/orders" class="msc-action-link">Lihat Semua <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg></a>
+      </div>
     
     <div id="recentContentWrapper">
       {/* Desktop Table */}
@@ -463,29 +473,41 @@ const statusLabels: Record<string, string> = {
 
       {/* Mobile Cards */}
       <div id="recentMobileContainer" class="mobile-orders-list">
-        {recentOrders.slice(0, 5).map((order) => (
-          <div class="mobile-order-card">
-            <div class="moc-top">
-              <div class="moc-info">
-                <strong>{order.customerName}</strong>
-                <small class="text-muted">{order.whatsappNumber}</small>
+        {recentOrders.slice(0, 5).map((order) => {
+          const sColor = statusColors[order.status] || 'neutral';
+          const sLabel = statusLabels[order.status] || order.status;
+          const gradientMap = {
+            warning: 'linear-gradient(180deg, #F59E0B, #D97706)',
+            info: 'linear-gradient(180deg, #3B82F6, #2563EB)',
+            success: 'linear-gradient(180deg, #22C55E, #16A34A)',
+            danger: 'linear-gradient(180deg, #EF4444, #DC2626)',
+            neutral: 'linear-gradient(180deg, #94A3B8, #64748B)',
+          };
+          return (
+          <div class="moc-card">
+            <div class="moc-accent-bar" style={`background: ${gradientMap[sColor] || gradientMap.neutral};`}></div>
+            <div class="moc-card-body">
+              <div class="moc-row-top">
+                <div class="moc-customer">
+                  <span class="moc-customer-name">{order.customerName}</span>
+                  <span class="moc-customer-phone">{order.whatsappNumber}</span>
+                </div>
+                <span class={`badge badge-${sColor}`}>{sLabel}</span>
               </div>
-              <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
-                {statusLabels[order.status] || order.status}
-              </span>
-            </div>
-            <div class="moc-bottom">
-              <div class="moc-detail">
-                <code>{order.orderNumber}</code>
-                <span class="badge badge-neutral">{order.kelompok}</span>
-              </div>
-              <div class="moc-meta">
-                <span class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></span>
-                <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</small>
+              <div class="moc-divider"></div>
+              <div class="moc-row-bottom">
+                <div class="moc-order-meta">
+                  <code class="moc-order-code">{order.orderNumber}</code>
+                  <span class="badge badge-neutral moc-office">{order.kelompok}</span>
+                </div>
+                <div class="moc-amount-wrap">
+                  <span class="moc-amount">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+                  <span class="moc-date">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
               </div>
             </div>
           </div>
-        ))}
+        )})}
       </div>
       <!-- Mobile Pagination -->
       <div class="pagination-footer pagination-mobile-only" id="recentMobilePagination" style={recentOrders.length > 5 ? '' : 'display: none;'}>
@@ -493,6 +515,7 @@ const statusLabels: Record<string, string> = {
         <span class="page-info" id="recentMobilePageInfo">Halaman 1</span>
         <button class="btn btn-outline btn-sm" id="recentMobileNext">Selanjutnya</button>
       </div>
+    </div>
     </div>
     
     <div id="recentEmptyState" class="empty-state-card" style={recentOrders.length === 0 ? '' : 'display: none;'}>
@@ -729,18 +752,20 @@ const statusLabels: Record<string, string> = {
         const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const followupSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
         return `<div class="pending-card">
-          <div class="pending-card-header">
-            <div class="pending-card-customer"><strong>${order.customerName}</strong><span class="text-muted">${order.whatsappNumber}</span></div>
-            <span class="badge badge-warning">Menunggu</span>
-          </div>
-          <div class="pending-card-items">${itemHtml}</div>
-          <div class="pending-card-footer">
-            <div class="pending-card-meta"><code>${order.orderNumber}</code><span class="badge badge-neutral">${order.kelompok}</span><small class="text-muted">${dateStr}</small></div>
-            <div class="pending-card-action">
-              <span class="pending-card-total">Rp ${order.totalAmount.toLocaleString('id-ID')}</span>
-              <button class="wa-followup-btn-mobile" data-order-id="${order.id}" data-customer-name="${order.customerName}">
-                ${followupSvg}<span class="followup-btn-text">Follow Up</span>
-              </button>
+          <div class="pending-card-body">
+            <div class="pending-card-header">
+              <div class="pending-card-customer"><strong>${order.customerName}</strong><span class="text-muted">${order.whatsappNumber}</span></div>
+              <span class="badge badge-warning">Menunggu</span>
+            </div>
+            <div class="pending-card-items">${itemHtml}</div>
+            <div class="pending-card-footer">
+              <div class="pending-card-meta"><code>${order.orderNumber}</code><span class="badge badge-neutral">${order.kelompok}</span><small class="text-muted">${dateStr}</small></div>
+              <div class="pending-card-action">
+                <span class="pending-card-total">Rp ${order.totalAmount.toLocaleString('id-ID')}</span>
+                <button class="wa-followup-btn-mobile" data-order-id="${order.id}" data-customer-name="${order.customerName}">
+                  ${followupSvg}<span class="followup-btn-text">Follow Up</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>`;
@@ -797,20 +822,38 @@ const statusLabels: Record<string, string> = {
 
     const rmc = document.getElementById('recentMobileContainer');
     if (rmc) {
+      const gradientMap = {
+        warning: 'linear-gradient(180deg, #F59E0B, #D97706)',
+        info: 'linear-gradient(180deg, #3B82F6, #2563EB)',
+        success: 'linear-gradient(180deg, #22C55E, #16A34A)',
+        danger: 'linear-gradient(180deg, #EF4444, #DC2626)',
+        neutral: 'linear-gradient(180deg, #94A3B8, #64748B)',
+      };
       rmc.innerHTML = rPaginated.map((order) => {
-        const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const cColor = statusColors[order.status] || 'neutral';
         const cLabel = statusLabels[order.status] || order.status;
-        return `<div class="mobile-order-card">
-          <div class="moc-top">
-            <div class="moc-info"><strong>${order.customerName}</strong><small class="text-muted">${order.whatsappNumber}</small></div>
-            <span class="badge badge-${cColor}">${cLabel}</span>
-          </div>
-          <div class="moc-bottom">
-            <div class="moc-detail"><code>${order.orderNumber}</code><span class="badge badge-neutral">${order.kelompok}</span></div>
-            <div class="moc-meta">
-              <span class="text-accent"><strong>Rp ${order.totalAmount.toLocaleString('id-ID')}</strong></span>
-              <small class="text-muted">${dateStr}</small>
+        const grad = gradientMap[cColor] || gradientMap.neutral;
+        return `<div class="moc-card">
+          <div class="moc-accent-bar" style="background: ${grad};"></div>
+          <div class="moc-card-body">
+            <div class="moc-row-top">
+              <div class="moc-customer">
+                <span class="moc-customer-name">${order.customerName}</span>
+                <span class="moc-customer-phone">${order.whatsappNumber}</span>
+              </div>
+              <span class="badge badge-${cColor}">${cLabel}</span>
+            </div>
+            <div class="moc-divider"></div>
+            <div class="moc-row-bottom">
+              <div class="moc-order-meta">
+                <code class="moc-order-code">${order.orderNumber}</code>
+                <span class="badge badge-neutral moc-office">${order.kelompok}</span>
+              </div>
+              <div class="moc-amount-wrap">
+                <span class="moc-amount">Rp ${order.totalAmount.toLocaleString('id-ID')}</span>
+                <span class="moc-date">${dateStr}</span>
+              </div>
             </div>
           </div>
         </div>`;
@@ -992,34 +1035,154 @@ const statusLabels: Record<string, string> = {
   /* Mobile order cards - hidden on desktop */
   .mobile-orders-list { display: none; }
 
-  .mobile-order-card {
+  /* ===== MODERN SECTION CARD ===== */
+  .modern-section-card {
     background: white;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 14px;
-    margin-bottom: 8px;
-    transition: border-color 0.15s;
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
   }
-  .mobile-order-card:hover { border-color: var(--color-border-hover); }
+  .msc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, var(--color-bg-secondary), rgba(99, 102, 241, 0.03));
+    border-bottom: 1px solid var(--color-border);
+  }
+  .msc-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .msc-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .msc-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+  .msc-subtitle {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin: 2px 0 0;
+  }
+  .msc-action-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-subtle);
+    transition: all 0.2s;
+  }
+  .msc-action-link:hover {
+    background: var(--color-accent);
+    color: white;
+    box-shadow: var(--shadow-accent);
+  }
+  .msc-body {
+    padding: 16px 24px 20px;
+  }
 
-  .moc-top {
+  /* ===== MODERN ORDER CARD (MOC) ===== */
+  .moc-card {
+    display: flex;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    background: white;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06);
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+  }
+  .moc-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.08), 0 0 1px rgba(79, 70, 229, 0.12);
+    transform: translateY(-1px);
+  }
+  .moc-accent-bar {
+    width: 5px;
+    flex-shrink: 0;
+  }
+  .moc-card-body {
+    flex: 1;
+    padding: 14px 16px;
+  }
+  .moc-row-top {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 10px;
   }
-  .moc-info { display: flex; flex-direction: column; gap: 2px; }
-  .moc-info strong { font-size: 0.9rem; }
-  .moc-info small { font-size: 0.75rem; }
-
-  .moc-bottom {
+  .moc-customer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .moc-customer-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+  .moc-customer-phone {
+    font-size: 0.73rem;
+    color: var(--color-text-muted);
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+  .moc-divider {
+    height: 1px;
+    background: linear-gradient(90deg, var(--color-border), transparent);
+    margin-bottom: 10px;
+  }
+  .moc-row-bottom {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .moc-detail { display: flex; align-items: center; gap: 8px; }
-  .moc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-  .moc-meta small { font-size: 0.7rem; }
+  .moc-order-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .moc-order-code {
+    font-size: 0.7rem !important;
+    padding: 2px 6px !important;
+    background: var(--color-bg-tertiary) !important;
+    border-radius: var(--radius-sm) !important;
+  }
+  .moc-office {
+    font-size: 0.65rem !important;
+  }
+  .moc-amount-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+  .moc-amount {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: var(--color-accent);
+  }
+  .moc-date {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
 
   /* ===== ITEM BREAKDOWN ===== */
   .item-breakdown-section {
@@ -1333,18 +1496,32 @@ const statusLabels: Record<string, string> = {
 
   /* Pending mobile cards */
   .pending-card {
+    display: flex;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
     background: white;
     border: 1px solid var(--color-border);
-    border-left: 4px solid #F59E0B;
-    border-radius: var(--radius-lg);
-    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06);
     margin-bottom: 10px;
-    transition: border-color 0.15s;
+    transition: all 0.2s ease;
   }
 
   .pending-card:hover {
-    border-color: var(--color-border-hover);
-    border-left-color: #D97706;
+    border-color: #F59E0B;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1), 0 0 1px rgba(245, 158, 11, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .pending-card::before {
+    content: '';
+    width: 5px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, #F59E0B, #D97706);
+  }
+
+  .pending-card-body {
+    flex: 1;
+    padding: 14px 16px;
   }
 
   .pending-card-header {
@@ -1360,8 +1537,8 @@ const statusLabels: Record<string, string> = {
     gap: 2px;
   }
 
-  .pending-card-customer strong { font-size: 0.9rem; }
-  .pending-card-customer .text-muted { font-size: 0.75rem; }
+  .pending-card-customer strong { font-size: 0.92rem; font-weight: 700; }
+  .pending-card-customer .text-muted { font-size: 0.73rem; font-family: 'SF Mono', Monaco, monospace; }
 
   .pending-card-items {
     display: flex;
@@ -1370,11 +1547,16 @@ const statusLabels: Record<string, string> = {
     padding-bottom: 10px;
     border-bottom: 1px solid var(--color-border);
     margin-bottom: 10px;
+    background: var(--color-bg-secondary);
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    border: none;
   }
 
   .pending-card-items small {
     font-size: 0.75rem;
-    color: var(--color-text-muted);
+    color: var(--color-text-secondary);
+    font-weight: 500;
   }
 
   .pending-card-footer {
