@@ -1032,157 +1032,7 @@ const statusLabels: Record<string, string> = {
   .empty-state-card p { font-weight: 600; margin-bottom: 4px; }
   .empty-state-card small { color: var(--color-text-muted); font-size: 0.85rem; }
 
-  /* Mobile order cards - hidden on desktop */
-  .mobile-orders-list { display: none; }
 
-  /* ===== MODERN SECTION CARD ===== */
-  .modern-section-card {
-    background: white;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-  }
-  .msc-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 24px;
-    background: linear-gradient(135deg, var(--color-bg-secondary), rgba(99, 102, 241, 0.03));
-    border-bottom: 1px solid var(--color-border);
-  }
-  .msc-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .msc-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .msc-title {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--color-text-primary);
-    margin: 0;
-  }
-  .msc-subtitle {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    margin: 2px 0 0;
-  }
-  .msc-action-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--color-accent);
-    text-decoration: none;
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    background: var(--color-accent-subtle);
-    transition: all 0.2s;
-  }
-  .msc-action-link:hover {
-    background: var(--color-accent);
-    color: white;
-    box-shadow: var(--shadow-accent);
-  }
-  .msc-body {
-    padding: 16px 24px 20px;
-  }
-
-  /* ===== MODERN ORDER CARD (MOC) ===== */
-  .moc-card {
-    display: flex;
-    border-radius: var(--radius-xl);
-    overflow: hidden;
-    background: white;
-    border: 1px solid var(--color-border);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06);
-    margin-bottom: 10px;
-    transition: all 0.2s ease;
-  }
-  .moc-card:hover {
-    border-color: var(--color-accent);
-    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.08), 0 0 1px rgba(79, 70, 229, 0.12);
-    transform: translateY(-1px);
-  }
-  .moc-accent-bar {
-    width: 5px;
-    flex-shrink: 0;
-  }
-  .moc-card-body {
-    flex: 1;
-    padding: 14px 16px;
-  }
-  .moc-row-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
-  }
-  .moc-customer {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .moc-customer-name {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: var(--color-text-primary);
-  }
-  .moc-customer-phone {
-    font-size: 0.73rem;
-    color: var(--color-text-muted);
-    font-family: 'SF Mono', Monaco, monospace;
-  }
-  .moc-divider {
-    height: 1px;
-    background: linear-gradient(90deg, var(--color-border), transparent);
-    margin-bottom: 10px;
-  }
-  .moc-row-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .moc-order-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .moc-order-code {
-    font-size: 0.7rem !important;
-    padding: 2px 6px !important;
-    background: var(--color-bg-tertiary) !important;
-    border-radius: var(--radius-sm) !important;
-  }
-  .moc-office {
-    font-size: 0.65rem !important;
-  }
-  .moc-amount-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-  }
-  .moc-amount {
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 0.92rem;
-    color: var(--color-accent);
-  }
-  .moc-date {
-    font-size: 0.68rem;
-    color: var(--color-text-muted);
-  }
 
   /* ===== ITEM BREAKDOWN ===== */
   .item-breakdown-section {
@@ -1494,133 +1344,7 @@ const statusLabels: Record<string, string> = {
     50% { opacity: 1; }
   }
 
-  /* Pending mobile cards */
-  .pending-card {
-    display: flex;
-    border-radius: var(--radius-xl);
-    overflow: hidden;
-    background: white;
-    border: 1px solid var(--color-border);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06);
-    margin-bottom: 10px;
-    transition: all 0.2s ease;
-  }
 
-  .pending-card:hover {
-    border-color: #F59E0B;
-    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1), 0 0 1px rgba(245, 158, 11, 0.2);
-    transform: translateY(-1px);
-  }
-
-  .pending-card::before {
-    content: '';
-    width: 5px;
-    flex-shrink: 0;
-    background: linear-gradient(180deg, #F59E0B, #D97706);
-  }
-
-  .pending-card-body {
-    flex: 1;
-    padding: 14px 16px;
-  }
-
-  .pending-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
-  }
-
-  .pending-card-customer {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .pending-card-customer strong { font-size: 0.92rem; font-weight: 700; }
-  .pending-card-customer .text-muted { font-size: 0.73rem; font-family: 'SF Mono', Monaco, monospace; }
-
-  .pending-card-items {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 10px;
-    background: var(--color-bg-secondary);
-    padding: 8px 10px;
-    border-radius: var(--radius-md);
-    border: none;
-  }
-
-  .pending-card-items small {
-    font-size: 0.75rem;
-    color: var(--color-text-secondary);
-    font-weight: 500;
-  }
-
-  .pending-card-footer {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .pending-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .pending-card-action {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .pending-card-total {
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 1rem;
-    color: var(--color-accent);
-  }
-
-  .wa-followup-btn-mobile {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: #25D366;
-    color: white;
-    font-size: 0.82rem;
-    font-weight: 700;
-    font-family: var(--font-body);
-    border-radius: var(--radius-md);
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
-  }
-
-  .wa-followup-btn-mobile:disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-
-  .wa-followup-btn-mobile.sending {
-    background: #6B7280;
-    box-shadow: none;
-    animation: pulse-btn 1.2s ease-in-out infinite;
-  }
-
-  .wa-followup-btn-mobile.sent {
-    background: #059669;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
-  }
-
-  .wa-followup-btn-mobile:hover:not(:disabled) {
-    background: #1DA851;
-  }
 
   .pending-empty {
     border-left: 4px solid #22C55E;
@@ -1956,5 +1680,117 @@ const statusLabels: Record<string, string> = {
     
     .desktop-table .pagination-footer { display: none !important; }
     .pagination-mobile-only { display: flex !important; }
+  }
+
+  /* ===== MOBILE ORDER CARDS (GLOBAL for JS rendering) ===== */
+  .mobile-orders-list { display: none; }
+
+  /* ===== MODERN SECTION CARD ===== */
+  .modern-section-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .msc-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, var(--color-bg-secondary), rgba(99, 102, 241, 0.03));
+    border-bottom: 1px solid var(--color-border);
+  }
+  .msc-title-wrap { display: flex; align-items: center; gap: 14px; }
+  .msc-icon {
+    width: 40px; height: 40px; border-radius: var(--radius-lg);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .msc-title { font-size: 1.05rem; font-weight: 800; color: var(--color-text-primary); margin: 0; }
+  .msc-subtitle { font-size: 0.75rem; color: var(--color-text-muted); margin: 2px 0 0; }
+  .msc-action-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.82rem; font-weight: 700; color: var(--color-accent);
+    text-decoration: none; padding: 6px 14px;
+    border-radius: var(--radius-full); background: var(--color-accent-subtle);
+    transition: all 0.2s;
+  }
+  .msc-action-link:hover { background: var(--color-accent); color: white; box-shadow: var(--shadow-accent); }
+  .msc-body { padding: 16px 24px 20px; }
+
+  /* ===== MODERN ORDER CARD (MOC) ===== */
+  .moc-card {
+    display: flex; border-radius: var(--radius-xl); overflow: hidden;
+    background: white; border: 1px solid var(--color-border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06);
+    margin-bottom: 10px; transition: all 0.2s ease;
+  }
+  .moc-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.08), 0 0 1px rgba(79, 70, 229, 0.12);
+    transform: translateY(-1px);
+  }
+  .moc-accent-bar { width: 5px; flex-shrink: 0; }
+  .moc-card-body { flex: 1; padding: 14px 16px; }
+  .moc-row-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .moc-customer { display: flex; flex-direction: column; gap: 2px; }
+  .moc-customer-name { font-size: 0.92rem; font-weight: 700; color: var(--color-text-primary); }
+  .moc-customer-phone { font-size: 0.73rem; color: var(--color-text-muted); font-family: 'SF Mono', Monaco, monospace; }
+  .moc-divider { height: 1px; background: linear-gradient(90deg, var(--color-border), transparent); margin-bottom: 10px; }
+  .moc-row-bottom { display: flex; justify-content: space-between; align-items: center; }
+  .moc-order-meta { display: flex; align-items: center; gap: 8px; }
+  .moc-order-code { font-size: 0.7rem !important; padding: 2px 6px !important; background: var(--color-bg-tertiary) !important; border-radius: var(--radius-sm) !important; }
+  .moc-office { font-size: 0.65rem !important; }
+  .moc-amount-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .moc-amount { font-family: var(--font-heading); font-weight: 800; font-size: 0.92rem; color: var(--color-accent); }
+  .moc-date { font-size: 0.68rem; color: var(--color-text-muted); }
+
+  /* ===== PENDING MOBILE CARDS ===== */
+  .pending-card {
+    display: flex; border-radius: var(--radius-xl); overflow: hidden;
+    background: white; border: 1px solid var(--color-border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06);
+    margin-bottom: 10px; transition: all 0.2s ease;
+  }
+  .pending-card:hover {
+    border-color: #F59E0B;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1), 0 0 1px rgba(245, 158, 11, 0.2);
+    transform: translateY(-1px);
+  }
+  .pending-card::before {
+    content: ''; width: 5px; flex-shrink: 0;
+    background: linear-gradient(180deg, #F59E0B, #D97706);
+  }
+  .pending-card-body { flex: 1; padding: 14px 16px; }
+  .pending-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .pending-card-customer { display: flex; flex-direction: column; gap: 2px; }
+  .pending-card-customer strong { font-size: 0.92rem; font-weight: 700; }
+  .pending-card-customer .text-muted { font-size: 0.73rem; font-family: 'SF Mono', Monaco, monospace; }
+  .pending-card-items {
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--color-bg-secondary); padding: 8px 10px;
+    border-radius: var(--radius-md); margin-bottom: 10px;
+  }
+  .pending-card-items small { font-size: 0.75rem; color: var(--color-text-secondary); font-weight: 500; }
+  .pending-card-footer { display: flex; flex-direction: column; gap: 10px; }
+  .pending-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pending-card-action { display: flex; justify-content: space-between; align-items: center; }
+  .pending-card-total { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--color-accent); }
+
+  .wa-followup-btn-mobile {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; background: #25D366; color: white;
+    font-size: 0.82rem; font-weight: 700; font-family: var(--font-body);
+    border-radius: var(--radius-md); border: none; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+  }
+  .wa-followup-btn-mobile:disabled { cursor: not-allowed; opacity: 0.7; }
+  .wa-followup-btn-mobile.sending { background: #6B7280; box-shadow: none; animation: pulse-btn 1.2s ease-in-out infinite; }
+  .wa-followup-btn-mobile.sent { background: #059669; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3); }
+  .wa-followup-btn-mobile:hover:not(:disabled) { background: #1DA851; }
+
+  @media (max-width: 768px) {
+    .mobile-orders-list { display: block; }
+    .msc-header { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; }
+    .msc-icon { width: 34px; height: 34px; }
+    .msc-title { font-size: 0.95rem; }
   }
 </style>
