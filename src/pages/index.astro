@@ -135,6 +135,10 @@ function formatBatchDate(dateStr: string): string {
           <a href="#satuan" class="btn btn-outline btn-lg">
             Produk Satuan →
           </a>
+          <a href="/cek-pesanan" class="btn btn-outline-accent btn-lg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Cek Pesanan
+          </a>
         </div>
         <div class="hero-stats-row">
           <div class="hero-stat-chip"><strong>{paketProducts.length}</strong> Paket</div>
@@ -685,6 +689,29 @@ function formatBatchDate(dateStr: string): string {
     border-color: var(--color-accent);
     color: var(--color-accent);
     box-shadow: var(--shadow-sm);
+  }
+
+  .btn-outline-accent {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 28px;
+    background: var(--color-accent-subtle);
+    border: 1.5px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    color: var(--color-accent);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    text-decoration: none;
+    font-family: var(--font-body);
+  }
+
+  .btn-outline-accent:hover {
+    background: var(--color-accent);
+    color: white;
+    box-shadow: var(--shadow-accent);
   }
 
   .hero-stats-row {
