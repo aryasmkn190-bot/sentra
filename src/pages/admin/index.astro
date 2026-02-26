@@ -22,6 +22,9 @@ let recentOrders: any[] = [];
 let itemBreakdown: Record<string, { name: string; type: string; quantity: number; revenue: number }> = {};
 let pendingOrders: any[] = [];
 
+let officeList: string[] = [];
+let clientOrdersJson = "[]";
+
 try {
   let allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
   const allProducts = await db.select().from(products);
@@ -30,6 +33,23 @@ try {
   if (allowedOffices !== null) {
     allOrders = allOrders.filter(o => allowedOffices.includes(o.kelompok));
   }
+
+  // Define unique office list
+  officeList = [...new Set(allOrders.map(o => o.kelompok))].sort();
+  
+  // Minimal json for client JS filtering
+  const minimalOrders = allOrders.map(o => ({
+    id: o.id,
+    orderNumber: o.orderNumber,
+    customerName: o.customerName,
+    whatsappNumber: o.whatsappNumber,
+    kelompok: o.kelompok,
+    status: o.status,
+    totalAmount: o.totalAmount || 0,
+    items: o.items || [],
+    createdAt: o.createdAt
+  }));
+  clientOrdersJson = JSON.stringify(minimalOrders);
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -98,6 +118,25 @@ const statusLabels: Record<string, string> = {
 ---
 
 <AdminLayout title="Dashboard" activeMenu="dashboard">
+  
+  <!-- Global Dashboard Header & Filter -->
+  <div class="dashboard-top-bar">
+    <div class="dt-bar-left"></div>
+    {isSuperAdmin && officeList.length > 1 && (
+      <div class="global-filter-wrap">
+        <span class="filter-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+        </span>
+        <select id="globalOfficeFilter" class="modern-filter-select">
+          <option value="all">🏢 Semua Kantor (Global)</option>
+          {officeList.map(o => (
+            <option value={o}>{o}</option>
+          ))}
+        </select>
+      </div>
+    )}
+  </div>
+
   <!-- Stats Grid -->
   <div class="stats-grid">
     <div class="stat-card">
@@ -105,7 +144,7 @@ const statusLabels: Record<string, string> = {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value">{stats.totalOrders}</span>
+        <span class="stat-value" id="stat-total-orders">{stats.totalOrders}</span>
         <span class="stat-label">Total Pesanan</span>
       </div>
     </div>
@@ -114,7 +153,7 @@ const statusLabels: Record<string, string> = {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value">{stats.todayOrders}</span>
+        <span class="stat-value" id="stat-today-orders">{stats.todayOrders}</span>
         <span class="stat-label">Hari Ini</span>
       </div>
     </div>
@@ -123,7 +162,7 @@ const statusLabels: Record<string, string> = {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value">{stats.totalProducts}</span>
+        <span class="stat-value" id="stat-total-products">{stats.totalProducts}</span>
         <span class="stat-label">Produk Aktif</span>
       </div>
     </div>
@@ -132,7 +171,7 @@ const statusLabels: Record<string, string> = {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value stat-value-sm">Rp {stats.pendingRevenue.toLocaleString('id-ID')}</span>
+        <span class="stat-value stat-value-sm" id="stat-pending-rev">Rp {stats.pendingRevenue.toLocaleString('id-ID')}</span>
         <span class="stat-label">⏳ Menunggu</span>
       </div>
     </div>
@@ -141,7 +180,7 @@ const statusLabels: Record<string, string> = {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value stat-value-sm">Rp {stats.confirmedRevenue.toLocaleString('id-ID')}</span>
+        <span class="stat-value stat-value-sm" id="stat-confirmed-rev">Rp {stats.confirmedRevenue.toLocaleString('id-ID')}</span>
         <span class="stat-label">✅ Dikonfirmasi</span>
       </div>
     </div>
@@ -150,7 +189,7 @@ const statusLabels: Record<string, string> = {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       </div>
       <div class="stat-info">
-        <span class="stat-value stat-value-sm">Rp {stats.totalRevenue.toLocaleString('id-ID')}</span>
+        <span class="stat-value stat-value-sm" id="stat-total-rev">Rp {stats.totalRevenue.toLocaleString('id-ID')}</span>
         <span class="stat-label">💰 Total Pendapatan</span>
       </div>
     </div>
@@ -361,131 +400,144 @@ const statusLabels: Record<string, string> = {
   </div>
 
   <!-- Recent Orders -->
-  <div class="dashboard-section">
+  <!-- Recent Orders -->
+  <div class="dashboard-section recent-section">
     <div class="section-header-row">
-      <h2>Pesanan Terbaru</h2>
+      <h2>🆕 Pesanan Terbaru</h2>
       <a href="/admin/orders" class="btn btn-secondary btn-sm">Lihat Semua →</a>
     </div>
     
-    {recentOrders.length > 0 ? (
-      <>
-        {/* Desktop Table */}
-        <div class="table-wrapper desktop-table">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>No. Order</th>
-                <th>Pelanggan</th>
-                <th>Kelompok</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Waktu</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map((order) => (
-                <tr>
-                  <td><code>{order.orderNumber}</code></td>
-                  <td>
-                    <strong>{order.customerName}</strong>
-                    <br/><small class="text-muted">{order.whatsappNumber}</small>
-                  </td>
-                  <td><span class="badge badge-neutral">{order.kelompok}</span></td>
-                  <td class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></td>
-                  <td>
-                    <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
-                      {statusLabels[order.status] || order.status}
-                    </span>
-                  </td>
-                  <td class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div class="mobile-orders-list">
-          {recentOrders.map((order) => (
-            <div class="mobile-order-card">
-              <div class="moc-top">
-                <div class="moc-info">
+    <div id="recentContentWrapper">
+      {/* Desktop Table */}
+      <div class="table-wrapper desktop-table modern-table-card">
+        <table class="table modern-table" id="recentTable">
+          <thead>
+            <tr>
+              <th>No. Order</th>
+              <th>Pelanggan</th>
+              <th>Kantor</th>
+              <th>Total Biaya</th>
+              <th>Status</th>
+              <th>Waktu</th>
+            </tr>
+          </thead>
+          <tbody id="recentContainer">
+            {recentOrders.slice(0, 5).map((order) => (
+              <tr class="modern-tr">
+                <td><code>{order.orderNumber}</code></td>
+                <td>
                   <strong>{order.customerName}</strong>
-                  <small class="text-muted">{order.whatsappNumber}</small>
-                </div>
-                <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
-                  {statusLabels[order.status] || order.status}
-                </span>
+                  <br/><small class="text-muted">{order.whatsappNumber}</small>
+                </td>
+                <td><span class="badge badge-neutral">{order.kelompok}</span></td>
+                <td class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></td>
+                <td>
+                  <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
+                    {statusLabels[order.status] || order.status}
+                  </span>
+                </td>
+                <td class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <!-- Desktop Pagination -->
+        <div class="pagination-footer" id="recentPagination" style={recentOrders.length > 5 ? '' : 'display: none;'}>
+          <button class="btn btn-outline btn-sm" id="recentPrev" disabled>Sebelumnya</button>
+          <span class="page-info" id="recentPageInfo">Halaman 1</span>
+          <button class="btn btn-outline btn-sm" id="recentNext">Selanjutnya</button>
+        </div>
+      </div>
+
+      {/* Mobile Cards */}
+      <div id="recentMobileContainer" class="mobile-orders-list">
+        {recentOrders.slice(0, 5).map((order) => (
+          <div class="mobile-order-card">
+            <div class="moc-top">
+              <div class="moc-info">
+                <strong>{order.customerName}</strong>
+                <small class="text-muted">{order.whatsappNumber}</small>
               </div>
-              <div class="moc-bottom">
-                <div class="moc-detail">
-                  <code>{order.orderNumber}</code>
-                  <span class="badge badge-neutral">{order.kelompok}</span>
-                </div>
-                <div class="moc-meta">
-                  <span class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></span>
-                  <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</small>
-                </div>
+              <span class={`badge badge-${statusColors[order.status] || 'neutral'}`}>
+                {statusLabels[order.status] || order.status}
+              </span>
+            </div>
+            <div class="moc-bottom">
+              <div class="moc-detail">
+                <code>{order.orderNumber}</code>
+                <span class="badge badge-neutral">{order.kelompok}</span>
+              </div>
+              <div class="moc-meta">
+                <span class="text-accent"><strong>Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</strong></span>
+                <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</small>
               </div>
             </div>
-          ))}
-        </div>
-      </>
-    ) : (
-      <div class="empty-state-card">
-        <div class="empty-icon">📦</div>
-        <p>Belum ada pesanan masuk</p>
-        <small>Pesanan dari pelanggan akan muncul di sini</small>
+          </div>
+        ))}
       </div>
-    )}
+      <!-- Mobile Pagination -->
+      <div class="pagination-footer pagination-mobile-only" id="recentMobilePagination" style={recentOrders.length > 5 ? '' : 'display: none;'}>
+        <button class="btn btn-outline btn-sm" id="recentMobilePrev" disabled>Sebelumnya</button>
+        <span class="page-info" id="recentMobilePageInfo">Halaman 1</span>
+        <button class="btn btn-outline btn-sm" id="recentMobileNext">Selanjutnya</button>
+      </div>
+    </div>
+    
+    <div id="recentEmptyState" class="empty-state-card" style={recentOrders.length === 0 ? '' : 'display: none;'}>
+      <div class="empty-icon">📦</div>
+      <p>Belum ada pesanan masuk</p>
+      <small>Pesanan dari pelanggan akan muncul di sini</small>
+    </div>
   </div>
 </AdminLayout>
 
 <script>
-  // ===== FOLLOW UP VIA API =====
-  document.querySelectorAll<HTMLButtonElement>('.wa-followup-btn, .wa-followup-btn-mobile').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const orderId = btn.dataset.orderId || '';
-      const customerName = btn.dataset.customerName || '';
-      const textEl = btn.querySelector('.followup-btn-text');
+  // ===== FOLLOW UP VIA API (DELEGATED) =====
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.wa-followup-btn, .wa-followup-btn-mobile');
+    if (!btn) return;
+    
+    // Check if it's disabled
+    if (btn.disabled) return;
 
-      // Loading state
-      btn.disabled = true;
-      btn.classList.add('sending');
-      if (textEl) textEl.textContent = 'Mengirim...';
+    const orderId = btn.dataset.orderId || '';
+    const customerName = btn.dataset.customerName || '';
+    const textEl = btn.querySelector('.followup-btn-text');
 
-      try {
-        const res = await fetch('/api/followup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: parseInt(orderId) }),
-        });
-        const result = await res.json();
+    // Loading state
+    btn.disabled = true;
+    btn.classList.add('sending');
+    if (textEl) textEl.textContent = 'Mengirim...';
 
-        if (result.success) {
-          // Show success modal
-          showFollowupSuccess(result.customerName || customerName);
-          // Mark button as sent
-          btn.classList.remove('sending');
-          btn.classList.add('sent');
-          if (textEl) textEl.textContent = 'Terkirim ✓';
-        } else {
-          btn.classList.remove('sending');
-          btn.disabled = false;
-          if (textEl) textEl.textContent = 'Follow Up';
-          (window as any).showToast?.(result.message || 'Gagal mengirim pesan', 'error');
-        }
-      } catch {
+    try {
+      const res = await fetch('/api/followup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: parseInt(orderId) }),
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        showFollowupSuccess(result.customerName || customerName);
+        btn.classList.remove('sending');
+        btn.classList.add('sent');
+        if (textEl) textEl.textContent = 'Terkirim ✓';
+      } else {
         btn.classList.remove('sending');
         btn.disabled = false;
         if (textEl) textEl.textContent = 'Follow Up';
-        (window as any).showToast?.('Terjadi kesalahan jaringan', 'error');
+        window.showToast?.(result.message || 'Gagal mengirim pesan', 'error');
       }
-    });
+    } catch {
+      btn.classList.remove('sending');
+      btn.disabled = false;
+      if (textEl) textEl.textContent = 'Follow Up';
+      window.showToast?.('Terjadi kesalahan jaringan', 'error');
+    }
   });
 
   // Success modal
-  function showFollowupSuccess(name: string) {
+  function showFollowupSuccess(name) {
     const overlay = document.getElementById('followupOverlay');
     const nameEl = document.getElementById('followupCustomerName');
     if (nameEl) nameEl.textContent = name;
@@ -500,6 +552,301 @@ const statusLabels: Record<string, string> = {
   document.getElementById('followupOverlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) hideFollowupModal();
   });
+</script>
+
+<script define:vars={{ clientOrdersJson }}>
+  const allOrders = JSON.parse(clientOrdersJson || "[]");
+  let currentOffice = 'all';
+
+  let breakdownPage = 1;
+  const breakdownLimit = 5;
+
+  let pendingPage = 1;
+  const pendingLimit = 5;
+
+  let recentPage = 1;
+  const recentLimit = 5;
+
+  const statusColors = {
+    pending: 'warning',
+    confirmed: 'info',
+    processing: 'info',
+    completed: 'success',
+    cancelled: 'danger',
+  };
+
+  const statusLabels = {
+    pending: 'Menunggu',
+    confirmed: 'Dikonfirmasi',
+    processing: 'Diproses',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
+  };
+
+  function renderDashboard() {
+    const filteredOrders = currentOffice === 'all' 
+      ? allOrders 
+      : allOrders.filter(o => o.kelompok === currentOffice);
+
+    // 1. STATS
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayCount = filteredOrders.filter(o => new Date(o.createdAt) >= today).length;
+    const pendingRev = filteredOrders.filter(o => o.status === 'pending').reduce((s, o) => s + o.totalAmount, 0);
+    const confirmedRev = filteredOrders.filter(o => o.status === 'confirmed').reduce((s, o) => s + o.totalAmount, 0);
+    const totalRev = pendingRev + confirmedRev;
+
+    const elTotalOrd = document.getElementById('stat-total-orders');
+    if (elTotalOrd) elTotalOrd.textContent = filteredOrders.length;
+    
+    const elTodayOrd = document.getElementById('stat-today-orders');
+    if (elTodayOrd) elTodayOrd.textContent = todayCount;
+    
+    // total-products stays global (not filtered by office)
+    
+    const elPendingRev = document.getElementById('stat-pending-rev');
+    if (elPendingRev) elPendingRev.textContent = `Rp ${pendingRev.toLocaleString('id-ID')}`;
+    
+    const elConfirmedRev = document.getElementById('stat-confirmed-rev');
+    if (elConfirmedRev) elConfirmedRev.textContent = `Rp ${confirmedRev.toLocaleString('id-ID')}`;
+
+    const elTotalRev = document.getElementById('stat-total-rev');
+    if (elTotalRev) elTotalRev.textContent = `Rp ${totalRev.toLocaleString('id-ID')}`;
+
+    // 2. BREAKDOWN ITEMS
+    const confirmedOrders = filteredOrders.filter(o => o.status === 'confirmed');
+    const itemMap = {};
+    for (const order of confirmedOrders) {
+      if (!order.items) continue;
+      for (const item of order.items) {
+        const key = item.productName || 'Unknown';
+        if (!itemMap[key]) itemMap[key] = { name: key, type: item.productType || 'satuan', quantity: 0, revenue: 0 };
+        itemMap[key].quantity += (item.quantity || 0);
+        itemMap[key].revenue += ((item.quantity || 0) * (item.price || 0));
+      }
+    }
+    const breakdownArr = Object.values(itemMap).sort((a, b) => b.quantity - a.quantity);
+    const totalBreakdownQty = breakdownArr.reduce((s, i) => s + i.quantity, 0);
+
+    const breakdownBadge = document.getElementById('breakdownBadge');
+    if (breakdownBadge) breakdownBadge.textContent = `✅ ${totalBreakdownQty} item disiapkan`;
+
+    const breakdownWrapper = document.getElementById('breakdownSectionWrapper');
+    if (breakdownWrapper) breakdownWrapper.style.display = breakdownArr.length > 0 ? '' : 'none';
+
+    // Pagination slice
+    const maxIdx = Math.ceil(breakdownArr.length / breakdownLimit);
+    if (breakdownPage > maxIdx && maxIdx > 0) breakdownPage = maxIdx;
+    
+    const sliceStart = (breakdownPage - 1) * breakdownLimit;
+    const paginatedBreakdown = breakdownArr.slice(sliceStart, sliceStart + breakdownLimit);
+
+    const breakdownContainer = document.getElementById('breakdownContainer');
+    if (breakdownContainer) {
+      if (paginatedBreakdown.length === 0) {
+        breakdownContainer.innerHTML = `<tr class="modern-empty-tr"><td colspan="5">📭 Tidak ada item dikonfirmasi.</td></tr>`;
+      } else {
+        breakdownContainer.innerHTML = paginatedBreakdown.map((item, idx) => {
+          const rank = sliceStart + idx + 1;
+          const isPaket = item.type === 'paket';
+          return `<tr class="modern-tr" style="animation-delay: ${idx * 0.03}s">
+            <td><span class="modern-rank">#${rank}</span></td>
+            <td><strong>${item.name}</strong></td>
+            <td><span class="badge ${isPaket ? 'badge-primary' : 'badge-neutral'}">${isPaket ? '📦 Paket' : '🚬 Satuan'}</span></td>
+            <td class="text-right"><span class="qty-highlight">${item.quantity}</span> <small class="text-muted">pcs</small></td>
+            <td class="text-right text-accent" style="font-family: var(--font-heading);"><strong>Rp ${item.revenue.toLocaleString('id-ID')}</strong></td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    const breakdownPagination = document.getElementById('breakdownPagination');
+    if (breakdownPagination) {
+      breakdownPagination.style.display = breakdownArr.length > breakdownLimit ? 'flex' : 'none';
+      const prevBtn = document.getElementById('breakdownPrev');
+      if (prevBtn) prevBtn.disabled = breakdownPage === 1;
+      const nextBtn = document.getElementById('breakdownNext');
+      if (nextBtn) nextBtn.disabled = breakdownPage >= maxIdx;
+      const info = document.getElementById('breakdownPageInfo');
+      if (info) info.textContent = `Halaman ${breakdownPage} dari ${maxIdx}`;
+    }
+
+    // 3. PENDING ORDERS
+    const pendings = filteredOrders.filter(o => o.status === 'pending');
+    const pb = document.getElementById('pendingBadge');
+    if (pb) pb.textContent = `${pendings.length} pesanan`;
+
+    const pw = document.getElementById('pendingContentWrapper');
+    if (pw) pw.style.display = pendings.length > 0 ? '' : 'none';
+    const pe = document.getElementById('pendingEmptyState');
+    if (pe) pe.style.display = pendings.length === 0 ? '' : 'none';
+
+    const pMaxIdx = Math.ceil(pendings.length / pendingLimit);
+    if (pendingPage > pMaxIdx && pMaxIdx > 0) pendingPage = pMaxIdx;
+
+    const pSliceStart = (pendingPage - 1) * pendingLimit;
+    const pPaginated = pendings.slice(pSliceStart, pSliceStart + pendingLimit);
+
+    const pc = document.getElementById('pendingContainer');
+    if (pc) {
+      pc.innerHTML = pPaginated.map((order) => {
+        const itemHtml = (order.items || []).map(i => `<small>• ${i.productName} ×${i.quantity}</small>`).join('');
+        const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const followupSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
+        return `<tr>
+          <td><strong>${order.customerName}</strong><br/><small class="text-muted"><code>${order.orderNumber}</code></small></td>
+          <td><span class="wa-number">${order.whatsappNumber}</span></td>
+          <td><span class="badge badge-neutral">${order.kelompok}</span></td>
+          <td><div class="items-mini">${itemHtml}</div></td>
+          <td class="text-accent"><strong>Rp ${order.totalAmount.toLocaleString('id-ID')}</strong></td>
+          <td class="text-muted" style="white-space:nowrap;">${dateStr}</td>
+          <td>
+            <button class="wa-followup-btn" data-order-id="${order.id}" data-customer-name="${order.customerName}">
+              ${followupSvg}
+              <span class="followup-btn-text">Follow Up</span>
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    const pmc = document.getElementById('pendingMobileContainer');
+    if (pmc) {
+      pmc.innerHTML = pPaginated.map((order) => {
+        const itemHtml = (order.items || []).map(i => `<small>• ${i.productName} ×${i.quantity}</small>`).join('');
+        const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const followupSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
+        return `<div class="pending-card">
+          <div class="pending-card-header">
+            <div class="pending-card-customer"><strong>${order.customerName}</strong><span class="text-muted">${order.whatsappNumber}</span></div>
+            <span class="badge badge-warning">Menunggu</span>
+          </div>
+          <div class="pending-card-items">${itemHtml}</div>
+          <div class="pending-card-footer">
+            <div class="pending-card-meta"><code>${order.orderNumber}</code><span class="badge badge-neutral">${order.kelompok}</span><small class="text-muted">${dateStr}</small></div>
+            <div class="pending-card-action">
+              <span class="pending-card-total">Rp ${order.totalAmount.toLocaleString('id-ID')}</span>
+              <button class="wa-followup-btn-mobile" data-order-id="${order.id}" data-customer-name="${order.customerName}">
+                ${followupSvg}<span class="followup-btn-text">Follow Up</span>
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    const pp = document.getElementById('pendingPagination');
+    if (pp) {
+      pp.style.display = pendings.length > pendingLimit ? 'flex' : 'none';
+      if (pendings.length > pendingLimit) {
+        document.getElementById('pendingPrev').disabled = pendingPage === 1;
+        document.getElementById('pendingNext').disabled = pendingPage >= pMaxIdx;
+        document.getElementById('pendingPageInfo').textContent = `Halaman ${pendingPage} dari ${pMaxIdx}`;
+      }
+    }
+    const pmp = document.getElementById('pendingMobilePagination');
+    if (pmp) {
+      pmp.style.display = pendings.length > pendingLimit ? 'flex' : 'none';
+      if (pendings.length > pendingLimit) {
+        document.getElementById('pendingMobilePrev').disabled = pendingPage === 1;
+        document.getElementById('pendingMobileNext').disabled = pendingPage >= pMaxIdx;
+        document.getElementById('pendingMobilePageInfo').textContent = `Halaman ${pendingPage} dari ${pMaxIdx}`;
+      }
+    }
+
+    // 4. RECENT ORDERS
+    const rMaxIdx = Math.ceil(filteredOrders.length / recentLimit);
+    if (recentPage > rMaxIdx && rMaxIdx > 0) recentPage = rMaxIdx;
+
+    const rSliceStart = (recentPage - 1) * recentLimit;
+    const rPaginated = filteredOrders.slice(rSliceStart, rSliceStart + recentLimit);
+
+    const rw = document.getElementById('recentContentWrapper');
+    if (rw) rw.style.display = filteredOrders.length > 0 ? '' : 'none';
+    const re = document.getElementById('recentEmptyState');
+    if (re) re.style.display = filteredOrders.length === 0 ? '' : 'none';
+
+    const rc = document.getElementById('recentContainer');
+    if (rc) {
+      rc.innerHTML = rPaginated.map((order) => {
+        const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const cColor = statusColors[order.status] || 'neutral';
+        const cLabel = statusLabels[order.status] || order.status;
+        return `<tr class="modern-tr">
+          <td><code>${order.orderNumber}</code></td>
+          <td><strong>${order.customerName}</strong><br/><small class="text-muted">${order.whatsappNumber}</small></td>
+          <td><span class="badge badge-neutral">${order.kelompok}</span></td>
+          <td class="text-accent"><strong>Rp ${order.totalAmount.toLocaleString('id-ID')}</strong></td>
+          <td><span class="badge badge-${cColor}">${cLabel}</span></td>
+          <td class="text-muted" style="white-space:nowrap;">${dateStr}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    const rmc = document.getElementById('recentMobileContainer');
+    if (rmc) {
+      rmc.innerHTML = rPaginated.map((order) => {
+        const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        const cColor = statusColors[order.status] || 'neutral';
+        const cLabel = statusLabels[order.status] || order.status;
+        return `<div class="mobile-order-card">
+          <div class="moc-top">
+            <div class="moc-info"><strong>${order.customerName}</strong><small class="text-muted">${order.whatsappNumber}</small></div>
+            <span class="badge badge-${cColor}">${cLabel}</span>
+          </div>
+          <div class="moc-bottom">
+            <div class="moc-detail"><code>${order.orderNumber}</code><span class="badge badge-neutral">${order.kelompok}</span></div>
+            <div class="moc-meta">
+              <span class="text-accent"><strong>Rp ${order.totalAmount.toLocaleString('id-ID')}</strong></span>
+              <small class="text-muted">${dateStr}</small>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // Pagination Controls
+    const rp = document.getElementById('recentPagination');
+    if (rp) {
+      rp.style.display = filteredOrders.length > recentLimit ? 'flex' : 'none';
+      if (filteredOrders.length > recentLimit) {
+        document.getElementById('recentPrev').disabled = recentPage === 1;
+        document.getElementById('recentNext').disabled = recentPage >= rMaxIdx;
+        document.getElementById('recentPageInfo').textContent = `Halaman ${recentPage} dari ${rMaxIdx}`;
+      }
+    }
+    const rmp = document.getElementById('recentMobilePagination');
+    if (rmp) {
+      rmp.style.display = filteredOrders.length > recentLimit ? 'flex' : 'none';
+      if (filteredOrders.length > recentLimit) {
+        document.getElementById('recentMobilePrev').disabled = recentPage === 1;
+        document.getElementById('recentMobileNext').disabled = recentPage >= rMaxIdx;
+        document.getElementById('recentMobilePageInfo').textContent = `Halaman ${recentPage} dari ${rMaxIdx}`;
+      }
+    }
+  }
+
+  // GLOBAL FILTER BINDING
+  document.getElementById('globalOfficeFilter')?.addEventListener('change', (e) => {
+    currentOffice = e.target.value;
+    breakdownPage = 1;
+    pendingPage = 1;
+    renderDashboard();
+  });
+
+  // PAGINATION BINDINGS
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.id === 'breakdownPrev') { breakdownPage--; renderDashboard(); }
+    if (t.id === 'breakdownNext') { breakdownPage++; renderDashboard(); }
+    if (t.id === 'pendingPrev' || t.id === 'pendingMobilePrev') { pendingPage--; renderDashboard(); }
+    if (t.id === 'pendingNext' || t.id === 'pendingMobileNext') { pendingPage++; renderDashboard(); }
+    if (t.id === 'recentPrev' || t.id === 'recentMobilePrev') { recentPage--; renderDashboard(); }
+    if (t.id === 'recentNext' || t.id === 'recentMobileNext') { recentPage++; renderDashboard(); }
+  });
+
+  // INITIALIZE
+  renderDashboard();
 </script>
 
 <style>
@@ -1267,6 +1614,144 @@ const statusLabels: Record<string, string> = {
 
   @media (max-width: 380px) {
     .stat-card { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
-    .paket-breakdown-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<style is:global>
+  /* ===== GLOBAL DASHBOARD TOP BAR ===== */
+  .dashboard-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    background: white;
+    padding: 16px 24px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+  }
+  .global-filter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .filter-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+  .modern-filter-select {
+    padding: 10px 16px 10px 38px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-bg-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px;
+    padding-right: 40px;
+    min-width: 220px;
+  }
+  .modern-filter-select:focus,
+  .modern-filter-select:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    background: white;
+  }
+
+  /* ===== MODERN TABLE COMPONENT ===== */
+  .modern-table-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .mtc-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: var(--color-bg-secondary);
+  }
+  .mtc-title-area h2 { margin-bottom: 4px; font-size: 1.15rem; }
+  .modern-table { width: 100%; border-collapse: collapse; margin-bottom: 0 !important; }
+  .modern-table th {
+    background: var(--color-bg-tertiary) !important;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    padding: 16px 24px !important;
+    font-weight: 700;
+    border-bottom: 1px solid var(--color-border) !important;
+    text-align: left;
+  }
+  .modern-table th.text-right { text-align: right; }
+  .modern-table td {
+    padding: 16px 24px !important;
+    vertical-align: middle;
+    border-bottom: 1px dashed var(--color-border);
+    transition: background 0.2s;
+    font-size: 0.9rem;
+  }
+  .modern-tr { animation: fadeIn 0.4s ease forwards; opacity: 0; }
+  .modern-tr:hover td { background: var(--color-bg-secondary); }
+  .modern-tr:last-child td { border-bottom: none; }
+  .modern-rank { font-family: var(--font-heading); font-weight: 800; color: var(--color-text-muted); font-size: 0.9rem; }
+  .qty-highlight { font-family: var(--font-heading); font-weight: 800; font-size: 1.1rem; color: var(--color-text-primary); }
+  .modern-empty-tr td { padding: 40px !important; text-align: center; color: var(--color-text-muted); font-weight: 500; }
+  .badge-primary { background: var(--color-accent); color: white; }
+
+  /* ===== PAGINATION AREA ===== */
+  .pagination-footer {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+  }
+  .pagination-footer .page-info {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+  .pagination-footer .btn {
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+  }
+  
+  .pagination-mobile-only {
+    display: none;
+    border-top: none;
+    background: transparent;
+    padding: 10px 0 0 0;
+  }
+
+  @media (max-width: 768px) {
+    .modern-table-card { border-radius: 0; border-left: none; border-right: none; }
+    .mtc-header { flex-direction: column; align-items: flex-start; }
+    .modern-table th, .modern-table td { padding: 12px 16px !important; }
+    
+    .dashboard-top-bar { padding: 16px; }
+    .modern-filter-select { width: 100%; min-width: auto; }
+    .dt-bar-left { display: none; } /* hide left side info on mobile to make room for filter */
+    
+    .desktop-table .pagination-footer { display: none !important; }
+    .pagination-mobile-only { display: flex !important; }
   }
 </style>
