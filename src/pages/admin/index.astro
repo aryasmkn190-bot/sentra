@@ -208,72 +208,43 @@ const statusLabels: Record<string, string> = {
   </div>
 
   <!-- Item Breakdown: Confirmed Orders Only (for preparation) -->
-  {(satuanItems.length > 0 || paketItems.length > 0) && (
-    <div class="dashboard-section item-breakdown-section">
-      <div class="section-header-row">
-        <h2>📋 Rekap Item Dikonfirmasi</h2>
-        <span class="section-badge section-badge-confirmed">✅ {totalSatuanQty + totalPaketQty} item ini perlu disiapkan</span>
-      </div>
-      <p class="section-desc">Daftar item dari pesanan yang sudah <strong>dikonfirmasi</strong> — siapkan produk berikut:</p>
-
-      <!-- Satuan Items -->
-      {satuanItems.length > 0 && (
-        <div class="breakdown-group">
-          <div class="breakdown-group-header">
-            <span class="breakdown-group-icon">🚬</span>
-            <span class="breakdown-group-title">Produk Satuan</span>
-            <span class="breakdown-group-total">{totalSatuanQty} pcs</span>
-          </div>
-          <div class="item-breakdown-grid">
-            {satuanItems.map((item, idx) => {
-              const maxQty = satuanItems[0]?.quantity || 1;
-              const pct = Math.round((item.quantity / maxQty) * 100);
-              return (
-                <div class="item-row" style={`animation-delay: ${idx * 0.04}s`}>
-                  <div class="item-row-main">
-                    <span class="item-rank">#{idx + 1}</span>
-                    <div class="item-name-col">
-                      <span class="item-name">{item.name}</span>
-                      <span class="item-revenue">Rp {item.revenue.toLocaleString('id-ID')}</span>
-                    </div>
-                    <div class="item-qty-badge">
-                      <strong>{item.quantity}</strong>
-                      <small>pcs</small>
-                    </div>
-                  </div>
-                  <div class="item-bar-track">
-                    <div class="item-bar-fill" style={`width: ${pct}%`}></div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <!-- Paket Items -->
-      {paketItems.length > 0 && (
-        <div class="breakdown-group breakdown-group-paket">
-          <div class="breakdown-group-header">
-            <span class="breakdown-group-icon">📦</span>
-            <span class="breakdown-group-title">Produk Paket</span>
-            <span class="breakdown-group-total">{totalPaketQty} pcs</span>
-          </div>
-          <div class="paket-breakdown-grid">
-            {paketItems.map((item) => (
-              <div class="paket-item-card">
-                <div class="paket-item-name">{item.name}</div>
-                <div class="paket-item-stats">
-                  <span class="paket-item-qty">{item.quantity} pcs</span>
-                  <span class="paket-item-rev">Rp {item.revenue.toLocaleString('id-ID')}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+  <div class="dashboard-section item-breakdown-section" id="breakdownSectionWrapper">
+    <div class="section-header-row">
+      <h2>📋 Rekap Item Dikonfirmasi</h2>
+      <span class="section-badge section-badge-confirmed" id="breakdownBadge">✅ {totalSatuanQty + totalPaketQty} item ini perlu disiapkan</span>
     </div>
-  )}
+    <p class="section-desc">Daftar item dari pesanan yang sudah <strong>dikonfirmasi</strong> — siapkan produk berikut:</p>
+
+    <div class="modern-table-card">
+      <table class="table modern-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nama Produk</th>
+            <th>Tipe</th>
+            <th style="text-align:right;">Jumlah</th>
+            <th style="text-align:right;">Pendapatan</th>
+          </tr>
+        </thead>
+        <tbody id="breakdownContainer">
+          {[...satuanItems, ...paketItems].sort((a, b) => b.quantity - a.quantity).slice(0, 5).map((item, idx) => (
+            <tr class="modern-tr">
+              <td><span class="modern-rank">#{idx + 1}</span></td>
+              <td><strong>{item.name}</strong></td>
+              <td><span class={`badge ${item.type === 'paket' ? 'badge-primary' : 'badge-neutral'}`}>{item.type === 'paket' ? '📦 Paket' : '🚬 Satuan'}</span></td>
+              <td style="text-align:right;"><span class="qty-highlight">{item.quantity}</span> <small class="text-muted">pcs</small></td>
+              <td style="text-align:right; font-family: var(--font-heading);"><strong class="text-accent">Rp {item.revenue.toLocaleString('id-ID')}</strong></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div class="pagination-footer" id="breakdownPagination" style={([...satuanItems, ...paketItems].length > 5) ? '' : 'display: none;'}>
+        <button class="btn btn-outline btn-sm" id="breakdownPrev" disabled>Sebelumnya</button>
+        <span class="page-info" id="breakdownPageInfo">Halaman 1</span>
+        <button class="btn btn-outline btn-sm" id="breakdownNext">Selanjutnya</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Pending Orders for Follow-Up -->
   <div class="dashboard-section pending-section">
@@ -783,7 +754,7 @@ const statusLabels: Record<string, string> = {
     }
     const pmp = document.getElementById('pendingMobilePagination');
     if (pmp) {
-      pmp.style.display = pendings.length > pendingLimit ? 'flex' : 'none';
+      pmp.style.display = pendings.length > pendingLimit ? '' : 'none';
       if (pendings.length > pendingLimit) {
         document.getElementById('pendingMobilePrev').disabled = pendingPage === 1;
         document.getElementById('pendingMobileNext').disabled = pendingPage >= pMaxIdx;
@@ -872,7 +843,7 @@ const statusLabels: Record<string, string> = {
     }
     const rmp = document.getElementById('recentMobilePagination');
     if (rmp) {
-      rmp.style.display = filteredOrders.length > recentLimit ? 'flex' : 'none';
+      rmp.style.display = filteredOrders.length > recentLimit ? '' : 'none';
       if (filteredOrders.length > recentLimit) {
         document.getElementById('recentMobilePrev').disabled = recentPage === 1;
         document.getElementById('recentMobileNext').disabled = recentPage >= rMaxIdx;
