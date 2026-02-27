@@ -33,7 +33,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   pending: 'Menunggu',
-  confirmed: 'Dikonfirmasi',
+  confirmed: 'Dibayar',
   processing: 'Diproses',
   completed: 'Selesai',
   cancelled: 'Dibatalkan',
@@ -68,7 +68,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
       <div class="orders-filters" id="filtersScroll">
         <button class="filter-chip active" data-filter="all">Semua <span class="filter-count">{allOrders.length}</span></button>
         <button class="filter-chip" data-filter="pending">⏳ Menunggu <span class="filter-count">{allOrders.filter(o => o.status === 'pending').length}</span></button>
-        <button class="filter-chip" data-filter="confirmed">✅ Konfirmasi <span class="filter-count">{allOrders.filter(o => o.status === 'confirmed').length}</span></button>
+        <button class="filter-chip" data-filter="confirmed">💰 Dibayar <span class="filter-count">{allOrders.filter(o => o.status === 'confirmed').length}</span></button>
         <button class="filter-chip" data-filter="processing">🔄 Proses <span class="filter-count">{allOrders.filter(o => o.status === 'processing').length}</span></button>
         <button class="filter-chip" data-filter="completed">🎉 Selesai <span class="filter-count">{allOrders.filter(o => o.status === 'completed').length}</span></button>
         <button class="filter-chip" data-filter="cancelled">❌ Batal <span class="filter-count">{allOrders.filter(o => o.status === 'cancelled').length}</span></button>
@@ -154,7 +154,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
                   <div class="action-group">
                     <select class="status-select" data-order-id={order.id} data-current={order.status}>
                       <option value="pending" selected={order.status === 'pending'}>Menunggu</option>
-                      <option value="confirmed" selected={order.status === 'confirmed'}>Dikonfirmasi</option>
+                      <option value="confirmed" selected={order.status === 'confirmed'}>Dibayar</option>
                       <option value="processing" selected={order.status === 'processing'}>Diproses</option>
                       <option value="completed" selected={order.status === 'completed'}>Selesai</option>
                       <option value="cancelled" selected={order.status === 'cancelled'}>Dibatalkan</option>
@@ -204,7 +204,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
                 <div class="oc-action-btns">
                   <select class="status-select-mobile" data-order-id={order.id} data-current={order.status}>
                     <option value="pending" selected={order.status === 'pending'}>Menunggu</option>
-                    <option value="confirmed" selected={order.status === 'confirmed'}>Dikonfirmasi</option>
+                    <option value="confirmed" selected={order.status === 'confirmed'}>Dibayar</option>
                     <option value="processing" selected={order.status === 'processing'}>Diproses</option>
                     <option value="completed" selected={order.status === 'completed'}>Selesai</option>
                     <option value="cancelled" selected={order.status === 'cancelled'}>Dibatalkan</option>

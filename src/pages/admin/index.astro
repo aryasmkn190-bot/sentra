@@ -110,7 +110,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   pending: 'Menunggu',
-  confirmed: 'Dikonfirmasi',
+  confirmed: 'Dibayar',
   processing: 'Diproses',
   completed: 'Selesai',
   cancelled: 'Dibatalkan',
@@ -181,7 +181,7 @@ const statusLabels: Record<string, string> = {
       </div>
       <div class="stat-info">
         <span class="stat-value stat-value-sm" id="stat-confirmed-rev">Rp {stats.confirmedRevenue.toLocaleString('id-ID')}</span>
-        <span class="stat-label">✅ Dikonfirmasi</span>
+        <span class="stat-label">💰 Dibayar</span>
       </div>
     </div>
     <div class="stat-card stat-card-total">
@@ -210,10 +210,10 @@ const statusLabels: Record<string, string> = {
   <!-- Item Breakdown: Confirmed Orders Only (for preparation) -->
   <div class="dashboard-section item-breakdown-section" id="breakdownSectionWrapper">
     <div class="section-header-row">
-      <h2>📋 Rekap Item Dikonfirmasi</h2>
+      <h2>📋 Rekap Item Dibayar</h2>
       <span class="section-badge section-badge-confirmed" id="breakdownBadge">✅ {totalSatuanQty + totalPaketQty} item ini perlu disiapkan</span>
     </div>
-    <p class="section-desc">Daftar item dari pesanan yang sudah <strong>dikonfirmasi</strong> — siapkan produk berikut:</p>
+    <p class="section-desc">Daftar item dari pesanan yang sudah <strong>dibayar</strong> — siapkan produk berikut:</p>
 
     <div class="modern-table-card">
       <table class="table modern-table">
@@ -583,7 +583,7 @@ const statusLabels: Record<string, string> = {
 
   const statusLabels = {
     pending: 'Menunggu',
-    confirmed: 'Dikonfirmasi',
+    confirmed: 'Dibayar',
     processing: 'Diproses',
     completed: 'Selesai',
     cancelled: 'Dibatalkan',
@@ -650,7 +650,7 @@ const statusLabels: Record<string, string> = {
     const breakdownContainer = document.getElementById('breakdownContainer');
     if (breakdownContainer) {
       if (paginatedBreakdown.length === 0) {
-        breakdownContainer.innerHTML = `<tr class="modern-empty-tr"><td colspan="5">📭 Tidak ada item dikonfirmasi.</td></tr>`;
+        breakdownContainer.innerHTML = `<tr class="modern-empty-tr"><td colspan="5">📭 Tidak ada item dibayar.</td></tr>`;
       } else {
         breakdownContainer.innerHTML = paginatedBreakdown.map((item, idx) => {
           const rank = sliceStart + idx + 1;
