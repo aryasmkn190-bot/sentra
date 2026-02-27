@@ -1,5 +1,6 @@
 ---
 import { getAdminUser } from '../lib/auth';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
   title?: string;
@@ -27,6 +28,7 @@ const userRole = adminUser?.role || 'admin';
   <meta name="theme-color" content="#f8f9fc" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>{title}</title>
+  <ClientRouter />
 </head>
 <body class="admin-body">
   <!-- Mobile Overlay -->
@@ -148,53 +150,53 @@ const userRole = adminUser?.role || 'admin';
   <div id="toast-container" class="toast-container"></div>
   
   <script>
-    window.showToast = function(message, type = 'success') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = `toast toast-${type}`;
-      toast.innerHTML = `
-        <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
-        <span>${message}</span>
-      `;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-    };
+    document.addEventListener('astro:page-load', () => {
+      window.showToast = function(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+          <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+          <span>${message}</span>
+        `;
+        container?.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateX(100%)';
+          toast.style.transition = 'all 0.3s ease';
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      };
 
-    function openSidebar() {
-      document.getElementById('adminSidebar')?.classList.add('open');
-      document.getElementById('adminOverlay')?.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    }
-    function closeSidebar() {
-      document.getElementById('adminSidebar')?.classList.remove('open');
-      document.getElementById('adminOverlay')?.classList.remove('open');
-      document.body.style.overflow = '';
-    }
+      function openSidebar() {
+        document.getElementById('adminSidebar')?.classList.add('open');
+        document.getElementById('adminOverlay')?.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeSidebar() {
+        document.getElementById('adminSidebar')?.classList.remove('open');
+        document.getElementById('adminOverlay')?.classList.remove('open');
+        document.body.style.overflow = '';
+      }
 
-    document.getElementById('menuBtn')?.addEventListener('click', openSidebar);
-    document.getElementById('sidebarCloseBtn')?.addEventListener('click', closeSidebar);
-    document.getElementById('adminOverlay')?.addEventListener('click', closeSidebar);
+      document.getElementById('menuBtn')?.addEventListener('click', openSidebar);
+      document.getElementById('sidebarCloseBtn')?.addEventListener('click', closeSidebar);
+      document.getElementById('adminOverlay')?.addEventListener('click', closeSidebar);
 
-    // Close sidebar on link click (mobile)
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
-      link.addEventListener('click', () => {
-        if (window.innerWidth <= 768) closeSidebar();
+      document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth <= 768) closeSidebar();
+        });
       });
-    });
 
-    // Swipe to close sidebar
-    let touchStartX = 0;
-    const sidebar = document.getElementById('adminSidebar');
-    sidebar?.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
-    sidebar?.addEventListener('touchend', (e) => {
-      const diff = touchStartX - e.changedTouches[0].clientX;
-      if (diff > 50) closeSidebar();
-    }, { passive: true });
+      let touchStartX = 0;
+      const sidebar = document.getElementById('adminSidebar');
+      sidebar?.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+      sidebar?.addEventListener('touchend', (e) => {
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (diff > 50) closeSidebar();
+      }, { passive: true });
+    });
   </script>
 </body>
 </html>
