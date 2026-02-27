@@ -1,0 +1,1008 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="Lacak Pesanan — Sentra">
+  <Header />
+
+  <section class="cek-hero">
+    <!-- Soft Glow Orbs / Mesh Gradient Background -->
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+    <div class="glow-orb glow-orb-3"></div>
+    
+    <div class="container cek-container">
+      <div class="cek-header-text">
+        <div class="cek-badge">✨ Lacak Pesanan</div>
+        <h1 class="cek-title">Status Pengiriman</h1>
+        <p class="cek-subtitle">Pantau Pesanan Anda Secara Real-time. Masukkan <strong>nomor pesanan</strong> atau <strong>nomor WhatsApp</strong> terdaftar.</p>
+      </div>
+
+      <!-- Premium Floating Search Bar -->
+      <div class="cek-search-wrapper">
+        <div class="cek-search-bar">
+          <svg class="cek-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+             <circle cx="11" cy="11" r="8"></circle>
+             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
+            type="text" 
+            id="orderSearchInput" 
+            class="cek-search-input" 
+            placeholder="Contoh: SDK-2026... atau 08123..." 
+            autocomplete="off" 
+          />
+          <button id="searchClear" class="cek-clear-btn" style="display: none;" aria-label="Hapus teks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <button id="searchBtn" class="cek-submit-btn">
+            Lacak
+            <svg class="btn-icon-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- State: Loading -->
+      <div id="coLoading" class="cek-state-box" style="display: none;">
+        <div class="loader-orb">
+          <div class="loader-orb-inner"></div>
+        </div>
+        <p>Mencari data pesanan Anda...</p>
+      </div>
+
+      <!-- State: Empty/Error -->
+      <div id="coEmpty" class="cek-state-box error-state" style="display: none;">
+        <div class="empty-icon-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3>Pesanan Tidak Ditemukan</h3>
+        <p>Nomor resi atau WhatsApp yang dimasukkan mungkin kurang tepat. Silakan periksa kembali.</p>
+      </div>
+
+      <!-- State: Results -->
+      <div id="coResults" class="cek-results" style="display: none;">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+</BaseLayout>
+
+<script>
+  const searchInput = document.getElementById('orderSearchInput') as HTMLInputElement;
+  const searchBtn = document.getElementById('searchBtn');
+  const searchClear = document.getElementById('searchClear');
+  const coLoading = document.getElementById('coLoading');
+  const coResults = document.getElementById('coResults');
+  const coEmpty = document.getElementById('coEmpty');
+
+  const statusLabels: Record<string, string> = {
+    pending: 'Menunggu',
+    confirmed: 'Dikonfirmasi',
+    processing: 'Diproses',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: '#F59E0B',
+    confirmed: '#10B981',
+    processing: '#4F46E5', /* Indigo premium */
+    completed: '#8B5CF6', /* Purple premium */
+    cancelled: '#EF4444',
+  };
+
+  function formatDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + 
+           d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Modern Minimalist SVG Icons
+  const modernIcons: Record<string, string> = {
+    pending: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    confirmed: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    processing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+    completed: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/><path d="M21 12a9 9 0 1 1-9-9"/></svg>`,
+  };
+
+  function renderModernTimeline(status: string) {
+    if (status === 'cancelled') {
+        return `
+          <div class="glass-timeline glass-cancelled">
+            <svg class="cancelled-bg-icon" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <div class="cancelled-content">
+              <strong>Pesanan Dibatalkan</strong>
+              <p>Mohon maaf, pesanan ini telah dibatalkan.</p>
+            </div>
+          </div>
+        `;
+    }
+
+    const steps = ['pending', 'confirmed', 'processing', 'completed'];
+    const currentIdx = steps.indexOf(status);
+    
+    // Calculate percentage for progress line (desktop)
+    const pct = currentIdx <= 0 ? 0 : currentIdx === 1 ? 33.3 : currentIdx === 2 ? 66.6 : 100;
+
+    return `
+      <div class="glass-timeline">
+        <!-- Desktop Horizontal Timeline -->
+        <div class="tl-desktop">
+          <div class="tl-track-bg"></div>
+          <div class="tl-track-fill" style="width: ${pct}%"></div>
+          <div class="tl-points">
+            ${steps.map((step, i) => {
+              const isPast = i < currentIdx;
+              const isActive = i === currentIdx;
+              const stateClass = isPast ? 'tl-step-done' : (isActive ? 'tl-step-active' : 'tl-step-upcoming');
+              
+              return `
+                <div class="tl-step ${stateClass}">
+                  <div class="tl-icon-box">
+                    ${modernIcons[step]}
+                    ${isActive ? '<div class="tl-pulse-ring"></div>' : ''}
+                  </div>
+                  <span class="tl-label">${statusLabels[step]}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Mobile Vertical Timeline -->
+        <div class="tl-mobile">
+          ${steps.map((step, i) => {
+            const isPast = i < currentIdx;
+            const isActive = i === currentIdx;
+            const stateClass = isPast ? 'tl-step-done' : (isActive ? 'tl-step-active' : 'tl-step-upcoming');
+            
+            return `
+              <div class="m-tl-item ${stateClass}">
+                <div class="m-tl-line"></div>
+                <div class="m-tl-icon-wrap">
+                  <div class="m-tl-icon">
+                    ${modernIcons[step]}
+                    ${isActive ? '<div class="m-tl-pulse-ring"></div>' : ''}
+                  </div>
+                </div>
+                <div class="m-tl-content">
+                  <h4>${statusLabels[step]}</h4>
+                  <p>${isActive ? 'Status saat ini' : (isPast ? 'Selesai' : '')}</p>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderOrders(orders: any[]) {
+    if (!coResults) return;
+    
+    coResults.innerHTML = `
+      <div class="results-info">
+        <span>Menampilkan <strong>${orders.length}</strong> pesanan ditemukan</span>
+      </div>
+      <div class="orders-grid">
+        ${orders.map((order, index) => `
+          <div class="glass-card modern-order-card" style="animation-delay: ${index * 0.1}s">
+            
+            <div class="moc-header">
+              <div class="moc-header-left">
+                <span class="moc-label">Nomor Pesanan</span>
+                <code class="moc-id">${order.orderNumber}</code>
+              </div>
+              <div class="moc-status-badge" style="color: ${statusColors[order.status] || '#6B7280'}; background: ${statusColors[order.status] || '#6B7280'}1a;">
+                <span class="status-dot" style="background: ${statusColors[order.status] || '#6B7280'}"></span>
+                ${statusLabels[order.status] || order.status}
+              </div>
+            </div>
+
+            <!-- TIMELINE -> Modern Style -->
+            ${renderModernTimeline(order.status)}
+
+            <div class="moc-body">
+              <div class="moc-customer">
+                <div class="avatar-circle">
+                  ${order.customerName.charAt(0).toUpperCase()}
+                </div>
+                <div class="customer-info">
+                  <strong>${order.customerName}</strong>
+                  <span>Tgl: ${formatDate(order.createdAt)}</span>
+                </div>
+              </div>
+
+              <div class="moc-items-list">
+                ${order.items.map((item: any) => {
+                  const itemTotal = item.productType === 'paket' ? item.price : item.price * item.quantity;
+                  return `
+                    <div class="moc-item">
+                      <div class="item-icon">${item.productType === 'paket' ? '📦' : '🛒'}</div>
+                      <div class="item-details">
+                        <span class="item-name">${item.productName}</span>
+                        <span class="item-qty">x${item.quantity}</span>
+                      </div>
+                      <span class="item-price">Rp ${itemTotal.toLocaleString('id-ID')}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <div class="moc-footer">
+              <span class="moc-total-label">Total Pembayaran</span>
+              <strong class="moc-total-val">Rp ${order.totalAmount.toLocaleString('id-ID')}</strong>
+            </div>
+            
+          </div>
+        `).join('')}
+      </div>
+    `;
+    coResults.style.display = 'block';
+  }
+
+  async function searchOrder() {
+    const query = searchInput?.value?.trim();
+    if (!query || query.length < 3) {
+      (window as any).showToast?.('Mohon isi minimal 3 karakter untuk mencari', 'error');
+      searchInput?.focus();
+      return;
+    }
+
+    if (coResults) coResults.style.display = 'none';
+    if (coEmpty) coEmpty.style.display = 'none';
+    if (coLoading) coLoading.style.display = 'flex';
+    
+    // Reset animations
+    if (coLoading) coLoading.style.animation = 'none';
+    if (coLoading) coLoading.offsetHeight; 
+    if (coLoading) coLoading.style.animation = 'fadeInUp 0.4s ease forwards';
+
+    try {
+      const res = await fetch('/api/check-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const result = await res.json();
+
+      if (coLoading) coLoading.style.display = 'none';
+
+      if (result.success && result.orders.length > 0) {
+        renderOrders(result.orders);
+      } else {
+        if (coEmpty) coEmpty.style.display = 'flex';
+        // Trigger empty animation
+        if (coEmpty) coEmpty.style.animation = 'none';
+        if (coEmpty) coEmpty.offsetHeight; 
+        if (coEmpty) coEmpty.style.animation = 'fadeInUp 0.4s ease forwards';
+      }
+    } catch {
+      if (coLoading) coLoading.style.display = 'none';
+      (window as any).showToast?.('Koneksi terputus. Coba lagi nanti.', 'error');
+    }
+  }
+
+  searchBtn?.addEventListener('click', searchOrder);
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchOrder();
+  });
+
+  searchInput?.addEventListener('input', () => {
+    if (searchClear) searchClear.style.display = searchInput.value.length > 0 ? 'flex' : 'none';
+  });
+
+  searchClear?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    if (searchClear) searchClear.style.display = 'none';
+    if (coResults) coResults.style.display = 'none';
+    if (coEmpty) coEmpty.style.display = 'none';
+    searchInput?.focus();
+  });
+</script>
+
+<style is:global>
+  /* ====== CORE LAYOUT & BACKGROUND ====== */
+  .cek-hero {
+    position: relative;
+    min-height: calc(100vh - 70px);
+    overflow: hidden;
+    background: #FAFAFC; /* Clean modern white/gray */
+    padding: 100px 0 80px;
+    z-index: 1;
+    font-family: var(--font-body);
+  }
+
+  /* Soft Animated Glowing Orbs (Apple/Stripe Style) */
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+    opacity: 0.5;
+    animation: floatingOrb 15s ease-in-out infinite alternate;
+  }
+  
+  .glow-orb-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.3), rgba(79, 70, 229, 0) 70%);
+    top: -100px; right: -150px;
+  }
+  
+  .glow-orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0) 70%);
+    bottom: 10%; left: -100px;
+    animation-delay: -5s;
+  }
+
+  .glow-orb-3 {
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse, rgba(139, 92, 246, 0.15), transparent 70%);
+    top: 40%; left: 20%;
+    animation-delay: -2s;
+  }
+
+  @keyframes floatingOrb {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(30px, -40px) scale(1.1); }
+    100% { transform: translate(-20px, 30px) scale(0.95); }
+  }
+
+  .cek-container {
+    max-width: 760px;
+    margin: 0 auto;
+    position: relative;
+    padding: 0 20px;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ====== HEADER TEXT ====== */
+  .cek-header-text {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeInUp 0.6s ease forwards;
+  }
+
+  .cek-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--color-accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 100px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(79, 70, 229, 0.15);
+  }
+
+  .cek-title {
+    font-size: clamp(2.2rem, 5vw, 3.2rem);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: #111827;
+    margin-bottom: 16px;
+    line-height: 1.1;
+  }
+
+  .cek-subtitle {
+    font-size: 1.05rem;
+    color: #6B7280;
+    line-height: 1.6;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+  .cek-subtitle strong {
+    color: #374151;
+  }
+
+  /* ====== UNIFIED FLOATING SEARCH BAR ====== */
+  .cek-search-wrapper {
+    margin-bottom: 40px;
+    animation: fadeInUp 0.7s ease forwards;
+  }
+
+  .cek-search-bar {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid rgba(0, 0, 0, 0.06);
+    padding: 8px 8px 8px 24px;
+    border-radius: 100px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0,0,0,0.02);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+  }
+
+  .cek-search-bar:focus-within {
+    border-color: rgba(79, 70, 229, 0.4);
+    box-shadow: 0 25px 50px rgba(79, 70, 229, 0.1), 0 0 0 4px rgba(79, 70, 229, 0.1);
+    background: white;
+    transform: translateY(-2px);
+  }
+
+  .cek-search-icon {
+    width: 22px;
+    height: 22px;
+    color: #9CA3AF;
+    transition: color 0.3s;
+  }
+
+  .cek-search-bar:focus-within .cek-search-icon {
+    color: var(--color-accent);
+  }
+
+  .cek-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 12px 16px;
+    font-size: 1.05rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: #111827;
+    outline: none;
+  }
+
+  .cek-search-input::placeholder {
+    color: #9CA3AF;
+    font-weight: 400;
+  }
+
+  .cek-clear-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #F3F4F6;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6B7280;
+    cursor: pointer;
+    margin-right: 8px;
+    transition: all 0.2s;
+  }
+  .cek-clear-btn:hover { background: #E5E7EB; color: #374151; }
+  .cek-clear-btn svg { width: 14px; height: 14px; }
+
+  .cek-submit-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-accent);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 100px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+  }
+
+  .cek-submit-btn:hover {
+    background: #4338CA;
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+  }
+  
+  .btn-icon-right { width: 18px; height: 18px; transition: transform 0.3s; }
+  .cek-submit-btn:hover .btn-icon-right { transform: translateX(4px); }
+
+
+  /* ====== LOADING & EMPTY STATES ====== */
+  .cek-state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 20px;
+    text-align: center;
+  }
+
+  /* Fancy modern loader */
+  .loader-orb {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 40%, var(--color-accent) 100%);
+    animation: rotate 1s linear infinite;
+    position: relative;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .loader-orb-inner {
+    width: 48px;
+    height: 48px;
+    background: #FAFAFC;
+    border-radius: 50%;
+  }
+  @keyframes rotate { 100% { transform: rotate(360deg); } }
+
+  .cek-state-box p {
+    color: #6B7280;
+    font-size: 1.05rem;
+    font-weight: 500;
+  }
+
+  .error-state {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    padding: 48px 32px;
+  }
+
+  .empty-icon-wrapper {
+    width: 72px;
+    height: 72px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    transform: rotate(-10deg);
+  }
+  .empty-icon-wrapper svg { width: 36px; height: 36px; }
+
+  .error-state h3 {
+    font-size: 1.4rem;
+    color: #111827;
+    margin-bottom: 12px;
+    font-weight: 800;
+  }
+
+  /* ====== RESULTS & CARDS (GLASSMORPHISM) ====== */
+  .results-info {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #6B7280;
+    margin-bottom: 24px;
+    animation: fadeInUp 0.5s ease forwards;
+  }
+  .results-info strong { color: #111827; }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0,0,0,0.01);
+    border-radius: 24px;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    margin-bottom: 32px;
+  }
+
+  /* Inside Order Card */
+  .moc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 32px;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+
+  .moc-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .moc-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .moc-id {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .moc-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  /* ====== TIMELINE - MODERN E-COMMERCE STYLE ====== */
+  .glass-timeline {
+    padding: 32px;
+    background: rgba(249, 250, 251, 0.5);
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+
+  /* Cancelled State */
+  .glass-cancelled {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 32px;
+    background: rgba(239, 68, 68, 0.05);
+  }
+  .cancelled-bg-icon {
+    position: absolute;
+    right: -20px;
+    opacity: 0.05;
+    width: 150px;
+    height: 150px;
+    transform: rotate(15deg);
+  }
+  .cancelled-content { z-index: 1; }
+  .cancelled-content strong { color: #DC2626; font-size: 1.1rem; display: block; margin-bottom: 4px;}
+  .cancelled-content p { color: #EF4444; font-size: 0.9rem; margin: 0;}
+
+  /* ---------------------- */
+  /* DESKTOP TIMELINE (HORIZONTAL) */
+  /* ---------------------- */
+  .tl-desktop {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .tl-track-bg, .tl-track-fill {
+    position: absolute;
+    top: 24px; /* Centers with 48px icons */
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    border-radius: 3px;
+  }
+  .tl-track-bg {
+    background: #E5E7EB;
+  }
+  .tl-track-fill {
+    background: var(--color-accent);
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  .tl-points {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    position: relative;
+    z-index: 2;
+  }
+
+  .tl-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    gap: 12px;
+  }
+
+  .tl-icon-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px; /* Squircle appearance */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 2px solid white;
+    transition: all 0.4s;
+    position: relative;
+  }
+  .tl-icon-box svg {
+    width: 24px; height: 24px;
+  }
+  
+  .tl-pulse-ring {
+    position: absolute;
+    inset: -6px;
+    border: 2px solid var(--color-accent);
+    border-radius: 20px;
+    animation: epicPulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  @keyframes epicPulse {
+    0% { transform: scale(0.9); opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+
+  .tl-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: color 0.3s;
+  }
+
+  /* Status specific styles */
+  .tl-step-done .tl-icon-box {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+    box-shadow: 0 8px 16px rgba(79, 70, 229, 0.25);
+  }
+  .tl-step-done .tl-label { color: #111827; }
+
+  .tl-step-active .tl-icon-box {
+    background: white;
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+  .tl-step-active .tl-label { color: var(--color-accent); font-weight: 800; }
+
+  .tl-step-upcoming .tl-icon-box {
+    background: #F3F4F6;
+    color: #9CA3AF;
+    box-shadow: none;
+    border-color: #E5E7EB;
+  }
+  .tl-step-upcoming .tl-label { color: #9CA3AF; }
+
+  /* ---------------------- */
+  /* MOBILE TIMELINE (VERTICAL) */
+  /* ---------------------- */
+  .tl-mobile { display: none; }
+
+
+  /* ====== BODY (Customer & Items) ====== */
+  .moc-body {
+    padding: 32px;
+  }
+
+  .moc-customer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px dashed rgba(0,0,0,0.08);
+  }
+
+  .avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-accent), #8B5CF6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  }
+
+  .customer-info strong {
+    display: block;
+    font-size: 1.1rem;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+  .customer-info span {
+    font-size: 0.85rem;
+    color: #6B7280;
+  }
+
+  .moc-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .moc-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .item-icon {
+    width: 44px;
+    height: 44px;
+    background: #F3F4F6;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+  .item-details { flex: 1; }
+  .item-name {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 2px;
+  }
+  .item-qty {
+    font-size: 0.85rem;
+    color: #9CA3AF;
+  }
+  .item-price {
+    font-weight: 700;
+    color: #111827;
+    font-size: 1rem;
+  }
+
+  /* ====== FOOTER ====== */
+  .moc-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 32px;
+    background: rgba(249, 250, 251, 0.8);
+    border-top: 1px solid rgba(0,0,0,0.04);
+  }
+
+  .moc-total-label {
+    font-size: 0.9rem;
+    color: #6B7280;
+    font-weight: 500;
+  }
+
+  .moc-total-val {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--color-accent);
+  }
+
+
+  /* ========================================= */
+  /*               RESPONSIVE                  */
+  /* ========================================= */
+  @media (max-width: 768px) {
+    .tl-desktop { display: none; }
+    
+    /* Reveal Mobile Timeline */
+    .tl-mobile {
+      display: flex;
+      flex-direction: column;
+      padding: 0 10px;
+    }
+
+    .m-tl-item {
+      display: flex;
+      position: relative;
+      padding-bottom: 24px;
+    }
+    .m-tl-item:last-child {
+      padding-bottom: 0;
+    }
+
+    .m-tl-line {
+      position: absolute;
+      left: 17px;
+      top: 40px;
+      bottom: -6px;
+      width: 2px;
+      background: #E5E7EB;
+      z-index: 1;
+    }
+    .m-tl-item:last-child .m-tl-line { display: none; }
+
+    .m-tl-icon-wrap {
+      position: relative;
+      z-index: 2;
+      margin-right: 20px;
+    }
+
+    .m-tl-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F3F4F6;
+      color: #9CA3AF;
+      transition: all 0.3s;
+    }
+    .m-tl-icon svg { width: 18px; height: 18px; }
+
+    /* Vertical Done State */
+    .tl-step-done .m-tl-icon {
+      background: var(--color-accent);
+      color: white;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+    }
+    .tl-step-done .m-tl-line { background: var(--color-accent); }
+
+    /* Vertical Active State */
+    .tl-step-active .m-tl-icon {
+      background: white;
+      border: 2px solid var(--color-accent);
+      color: var(--color-accent);
+    }
+    
+    .m-tl-pulse-ring {
+      position: absolute;
+      inset: -4px;
+      border: 2px solid var(--color-accent);
+      border-radius: 14px;
+      animation: epicPulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    .m-tl-content {
+      padding-top: 6px;
+      flex: 1;
+    }
+    .m-tl-content h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #9CA3AF;
+      margin-bottom: 4px;
+    }
+    .m-tl-content p {
+      font-size: 0.8rem;
+      color: #9CA3AF;
+    }
+    
+    .tl-step-done .m-tl-content h4 { color: #111827; }
+    .tl-step-active .m-tl-content h4 { color: var(--color-accent); }
+    .tl-step-active .m-tl-content p { color: var(--color-accent); font-weight: 600; }
+
+    /* Adjust spacing on card */
+    .moc-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+    .glass-timeline { padding: 24px 20px; }
+    .moc-body { padding: 20px; }
+    .moc-footer { padding: 20px; flex-direction: column; gap: 8px; align-items: flex-start; }
+    .moc-total-val { align-self: flex-end; }
+  }
+
+  @media (max-width: 480px) {
+    .cek-hero { padding: 80px 0 60px; }
+    .cek-title { font-size: 2rem; }
+    
+    /* Make search bar stack in very small screens */
+    .cek-search-bar {
+      padding: 6px;
+      flex-direction: column;
+      border-radius: 16px;
+    }
+    .cek-search-input { width: 100%; padding: 12px 16px 12px 40px; }
+    .cek-search-icon { position: absolute; left: 16px; top: 18px; }
+    .cek-clear-btn { position: absolute; right: 8px; top: 13px; }
+    .cek-submit-btn { width: 100%; justify-content: center; border-radius: 12px; margin-top: 6px; }
+  }
+</style>
