@@ -972,6 +972,7 @@ const statusLabels: Record<string, string> = {
   .dashboard-section {
     animation: fadeIn 0.4s ease 0.25s forwards;
     opacity: 0;
+    margin-bottom: 32px;
   }
 
   .section-header-row {
@@ -1273,41 +1274,52 @@ const statusLabels: Record<string, string> = {
   .wa-followup-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: #25D366;
+    gap: 8px;
+    padding: 8px 18px;
+    background: linear-gradient(135deg, #25D366, #128C7E);
     color: white;
     font-size: 0.78rem;
     font-weight: 700;
     font-family: var(--font-body);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-full);
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s ease;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+    box-shadow: 0 2px 10px rgba(37, 211, 102, 0.25);
+    letter-spacing: 0.02em;
+  }
+
+  .wa-followup-btn svg {
+    filter: drop-shadow(0 0 2px rgba(255,255,255,0.4));
   }
 
   .wa-followup-btn:hover:not(:disabled) {
-    background: #1DA851;
-    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #1EBE5A, #0F7A6E);
+    box-shadow: 0 4px 18px rgba(37, 211, 102, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .wa-followup-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);
   }
 
   .wa-followup-btn:disabled {
     cursor: not-allowed;
-    opacity: 0.7;
+    opacity: 0.6;
+    filter: saturate(0.5);
   }
 
   .wa-followup-btn.sending {
-    background: #6B7280;
+    background: linear-gradient(135deg, #6B7280, #4B5563);
     box-shadow: none;
     animation: pulse-btn 1.2s ease-in-out infinite;
   }
 
   .wa-followup-btn.sent {
-    background: #059669;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3);
   }
 
   @keyframes pulse-btn {
@@ -1747,16 +1759,18 @@ const statusLabels: Record<string, string> = {
   .pending-card-total { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--color-accent); }
 
   .wa-followup-btn-mobile {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 16px; background: #25D366; color: white;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; background: linear-gradient(135deg, #25D366, #128C7E); color: white;
     font-size: 0.82rem; font-weight: 700; font-family: var(--font-body);
-    border-radius: var(--radius-md); border: none; cursor: pointer;
-    transition: all 0.2s; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+    border-radius: var(--radius-full); border: none; cursor: pointer;
+    transition: all 0.25s ease; box-shadow: 0 2px 10px rgba(37, 211, 102, 0.25);
+    letter-spacing: 0.02em;
   }
-  .wa-followup-btn-mobile:disabled { cursor: not-allowed; opacity: 0.7; }
-  .wa-followup-btn-mobile.sending { background: #6B7280; box-shadow: none; animation: pulse-btn 1.2s ease-in-out infinite; }
-  .wa-followup-btn-mobile.sent { background: #059669; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3); }
-  .wa-followup-btn-mobile:hover:not(:disabled) { background: #1DA851; }
+  .wa-followup-btn-mobile svg { filter: drop-shadow(0 0 2px rgba(255,255,255,0.4)); }
+  .wa-followup-btn-mobile:disabled { cursor: not-allowed; opacity: 0.6; filter: saturate(0.5); }
+  .wa-followup-btn-mobile.sending { background: linear-gradient(135deg, #6B7280, #4B5563); box-shadow: none; animation: pulse-btn 1.2s ease-in-out infinite; }
+  .wa-followup-btn-mobile.sent { background: linear-gradient(135deg, #059669, #047857); box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3); }
+  .wa-followup-btn-mobile:hover:not(:disabled) { background: linear-gradient(135deg, #1EBE5A, #0F7A6E); box-shadow: 0 4px 18px rgba(37, 211, 102, 0.4); transform: translateY(-1px); }
 
   @media (max-width: 768px) {
     .mobile-orders-list { display: block; }
