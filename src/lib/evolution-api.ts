@@ -57,6 +57,65 @@ export async function sendWhatsAppMessage({ number, message }: SendMessageOption
     }
 }
 
+interface SendImageOptions {
+    number: string;
+    imageUrl: string;
+    caption?: string;
+}
+
+export async function sendWhatsAppImage({ number, imageUrl, caption }: SendImageOptions): Promise<boolean> {
+    const apiUrl = (import.meta.env.EVOLUTION_API_URL ?? process.env.EVOLUTION_API_URL ?? '').trim();
+    const apiKey = (import.meta.env.EVOLUTION_API_KEY ?? process.env.EVOLUTION_API_KEY ?? '').trim();
+    const instance = (import.meta.env.EVOLUTION_INSTANCE ?? process.env.EVOLUTION_INSTANCE ?? '').trim();
+
+    if (!apiUrl || !apiKey || !instance) {
+        console.error('[WA] Evolution API not configured for image send');
+        return false;
+    }
+
+    // Normalize phone number
+    let normalizedNumber = number.replace(/\D/g, '');
+    if (normalizedNumber.startsWith('0')) {
+        normalizedNumber = '62' + normalizedNumber.substring(1);
+    }
+    if (!normalizedNumber.startsWith('62')) {
+        normalizedNumber = '62' + normalizedNumber;
+    }
+
+    const endpoint = `${apiUrl}/message/sendMedia/${instance}`;
+    console.log(`[WA] Sending QRIS image to ${normalizedNumber} via ${endpoint}`);
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': apiKey,
+            },
+            body: JSON.stringify({
+                number: normalizedNumber,
+                mediatype: 'image',
+                mimetype: 'image/jpeg',
+                caption: caption || '',
+                media: imageUrl,
+            }),
+        });
+
+        const responseText = await response.text();
+
+        if (!response.ok) {
+            console.error(`[WA] Image API error (${response.status}):`, responseText);
+            return false;
+        }
+
+        console.log('[WA] Image sent successfully:', responseText.slice(0, 100));
+        return true;
+    } catch (error) {
+        console.error('[WA] Image fetch error:', error instanceof Error ? error.message : error);
+        return false;
+    }
+}
+
 export function formatOrderMessage(order: {
     orderNumber: string;
     customerName: string;

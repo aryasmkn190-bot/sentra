@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { db } from '../../lib/db';
-import { orders, settings } from '../../lib/schema';
+import { orders, settings, batches, getBatchStatus } from '../../lib/schema';
 import { eq } from 'drizzle-orm';
-import { sendWhatsAppMessage, formatOrderMessage } from '../../lib/evolution-api';
+import { sendWhatsAppMessage, sendWhatsAppImage, formatOrderMessage } from '../../lib/evolution-api';
 import type { OrderItem } from '../../lib/schema';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -18,19 +18,14 @@ export const POST: APIRoute = async ({ request }) => {
             });
         }
 
-        // Validate batch window
+        // Validate batch window from batches table
+        let activeBatchId: number | null = null;
         try {
-            const allSettings = await db.select().from(settings);
-            const sMap: Record<string, string> = {};
-            allSettings.forEach(s => { sMap[s.key] = s.value; });
-
-            const batchActive = sMap.batch_active === 'true';
-            if (batchActive) {
-                const batchStart = sMap.batch_start ? new Date(sMap.batch_start) : null;
-                const batchEnd = sMap.batch_end ? new Date(sMap.batch_end) : null;
-                const now = new Date();
-
-                if (!batchStart || !batchEnd || now < batchStart || now > batchEnd) {
+            const activeBatch = await db.select().from(batches).where(eq(batches.isActive, true)).limit(1);
+            if (activeBatch.length > 0) {
+                const batch = activeBatch[0];
+                const status = getBatchStatus(batch);
+                if (status !== 'open') {
                     return new Response(JSON.stringify({
                         success: false,
                         message: 'Pembelian sedang ditutup. Tidak bisa checkout di luar periode batch.',
@@ -39,14 +34,18 @@ export const POST: APIRoute = async ({ request }) => {
                         headers: { 'Content-Type': 'application/json' },
                     });
                 }
+                activeBatchId = batch.id;
             }
+            // If no active batch exists, allow checkout (batch system not in use)
         } catch (e) {
-            console.error('Error checking batch settings:', e);
+            console.error('Error checking batch:', e);
         }
 
-        // Generate order number
-        const now = new Date();
-        const orderNumber = `SDK-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
+        // Generate short order number (SDK-XXXX)
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
+        let code = '';
+        for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        const orderNumber = `SDK-${code}`;
 
         // Get payment info from settings
         let paymentInfo = 'Hubungi admin untuk info pembayaran';
@@ -61,7 +60,7 @@ export const POST: APIRoute = async ({ request }) => {
             console.error('Error fetching payment info:', e);
         }
 
-        // Save order to database
+        // Save order to database with batch_id
         const orderItems: OrderItem[] = items.map((item: any) => ({
             productId: item.productId,
             productName: item.productName,
@@ -80,6 +79,7 @@ export const POST: APIRoute = async ({ request }) => {
             totalAmount,
             status: 'pending',
             waSent: false,
+            batchId: activeBatchId,
         });
 
         // Send WhatsApp message via Evolution API
@@ -99,6 +99,21 @@ export const POST: APIRoute = async ({ request }) => {
                 number: whatsappNumber,
                 message,
             });
+
+            // Send QRIS image after text message
+            if (waSent) {
+                try {
+                    const siteUrl = new URL(request.url).origin;
+                    const qrisUrl = `${siteUrl}/qr.jpeg`;
+                    await sendWhatsAppImage({
+                        number: whatsappNumber,
+                        imageUrl: qrisUrl,
+                        caption: `💳 Scan QRIS di atas untuk pembayaran pesanan ${orderNumber}\n💰 Total: Rp ${totalAmount.toLocaleString('id-ID')}\n\nKirim bukti transfer ke nomor ini. Terima kasih! 🙏`,
+                    });
+                } catch (imgErr) {
+                    console.error('[WA] Failed to send QRIS image:', imgErr);
+                }
+            }
 
             // Update waSent status
             if (waSent) {

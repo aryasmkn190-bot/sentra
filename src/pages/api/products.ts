@@ -28,7 +28,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     try {
         const body = await request.json();
-        const { name, type, price, description, items, isActive, sortOrder, image } = body;
+        const { name, type, price, description, items, isActive, sortOrder, image, batchId, minOrder, category } = body;
 
         await db.insert(products).values({
             name,
@@ -37,6 +37,9 @@ export const POST: APIRoute = async ({ request }) => {
             description,
             items: items || null,
             image: image || null,
+            category: category || null,
+            batchId: type === 'paket' ? (batchId ? parseInt(batchId) : null) : null,
+            minOrder: parseInt(minOrder || '1') || 1,
             isActive: isActive !== false,
             sortOrder: parseInt(sortOrder || '0'),
         });
@@ -62,7 +65,7 @@ export const PUT: APIRoute = async ({ request }) => {
 
     try {
         const body = await request.json();
-        const { id, name, type, price, description, items, isActive, sortOrder, image } = body;
+        const { id, name, type, price, description, items, isActive, sortOrder, image, batchId, minOrder, category } = body;
 
         await db.update(products).set({
             name,
@@ -71,6 +74,9 @@ export const PUT: APIRoute = async ({ request }) => {
             description,
             items: items || null,
             image: image || null,
+            category: category || null,
+            batchId: type === 'paket' ? (batchId ? parseInt(batchId) : null) : null,
+            minOrder: parseInt(minOrder || '1') || 1,
             isActive,
             sortOrder: parseInt(sortOrder || '0'),
             updatedAt: new Date(),

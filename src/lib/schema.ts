@@ -12,10 +12,24 @@ export const products = pgTable('products', {
     description: text('description'),
     image: text('image'),
     items: jsonb('items').$type<string[]>(),
+    category: varchar('category', { length: 100 }),
+    batchId: integer('batch_id'),
+    minOrder: integer('min_order').notNull().default(1),
     isActive: boolean('is_active').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ===== BATCHES =====
+export const batches = pgTable('batches', {
+    id: serial('id').primaryKey(),
+    batchNumber: integer('batch_number').notNull().unique(),
+    name: varchar('name', { length: 255 }),
+    startAt: timestamp('start_at').notNull(),
+    endAt: timestamp('end_at').notNull(),
+    isActive: boolean('is_active').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const orders = pgTable('orders', {
@@ -29,6 +43,7 @@ export const orders = pgTable('orders', {
     status: orderStatusEnum('status').notNull().default('pending'),
     notes: text('notes'),
     waSent: boolean('wa_sent').notNull().default(false),
+    batchId: integer('batch_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -54,6 +69,8 @@ export const adminUsers = pgTable('admin_users', {
 
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
+export type Batch = typeof batches.$inferSelect;
+export type NewBatch = typeof batches.$inferInsert;
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
@@ -67,4 +84,13 @@ export interface OrderItem {
     quantity: number;
     price: number;
     items?: string[];
+}
+
+export type BatchStatus = 'upcoming' | 'open' | 'closed';
+
+export function getBatchStatus(batch: Batch): BatchStatus {
+    const now = new Date();
+    if (now < batch.startAt) return 'upcoming';
+    if (now >= batch.startAt && now <= batch.endAt) return 'open';
+    return 'closed';
 }

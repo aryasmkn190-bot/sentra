@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { db } from '../../lib/db';
-import { products } from '../../lib/schema';
+import { products, batches } from '../../lib/schema';
 import { asc } from 'drizzle-orm';
 import { getAdminUser } from '../../lib/auth';
 
@@ -11,14 +11,22 @@ if (adminUser?.role !== 'super_admin') {
 }
 
 let allProducts: any[] = [];
+let allBatches: any[] = [];
 try {
   allProducts = await db.select().from(products).orderBy(asc(products.sortOrder));
+  allBatches = await db.select().from(batches).orderBy(asc(batches.batchNumber));
 } catch (error) {
   console.error('Error fetching products:', error);
 }
 
 const paketProducts = allProducts.filter(p => p.type === 'paket');
 const satuanProducts = allProducts.filter(p => p.type === 'satuan');
+
+// Build batch name map
+const batchMap: Record<number, string> = {};
+for (const b of allBatches) {
+  batchMap[b.id] = b.name || `Batch ${b.batchNumber}`;
+}
 ---
 
 <AdminLayout title="Kelola Produk" activeMenu="products">
@@ -43,6 +51,7 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
             <thead>
               <tr>
                 <th>Nama</th>
+                <th>Batch</th>
                 <th>Isi Paket</th>
                 <th>Harga</th>
                 <th>Status</th>
@@ -57,6 +66,11 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
                     <strong>{product.name}</strong>
                     {product.image && <span title="Memiliki background custom">🖼️</span>}
                     <br/><small class="text-muted">{product.description}</small>
+                  </td>
+                  <td>
+                    <span class="badge badge-info">
+                      {product.batchId ? batchMap[product.batchId] || `Batch #${product.batchId}` : '—'}
+                    </span>
                   </td>
                   <td>
                     <div class="items-list">
@@ -92,6 +106,9 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
                     {product.name} {product.image && <span title="Memiliki background custom">🖼️</span>}
                   </strong>
                   <small class="text-muted">{product.description}</small>
+                  <small class="badge badge-info" style="display:inline-block; margin-top:3px; font-size:0.65rem;">
+                    {product.batchId ? batchMap[product.batchId] || `Batch #${product.batchId}` : '—'}
+                  </small>
                 </div>
                 <div class="pc-actions">
                   <span class={`badge ${product.isActive ? 'badge-success' : 'badge-danger'}`}>
@@ -218,10 +235,36 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
           <label class="form-label">Isi Paket (satu item per baris)</label>
           <textarea id="productItems" class="form-input form-textarea" rows="4" placeholder="INDOMIE GORENG&#10;GULA PASIR 1/4&#10;..."></textarea>
         </div>
+        <div class="form-group" id="batchGroup">
+          <label class="form-label">Batch</label>
+          <select id="productBatchId" class="form-select">
+            <option value="">— Pilih Batch —</option>
+            {allBatches.map(b => (
+              <option value={b.id}>{b.name || `Batch ${b.batchNumber}`}</option>
+            ))}
+          </select>
+          <small class="form-hint" style="color:var(--color-text-muted); font-size:0.75rem; margin-top:4px; display:block;">Produk paket akan tampil hanya di batch yang dipilih.</small>
+        </div>
         <div class="form-group" id="imageGroup">
           <label class="form-label">Background Image URL (Opsional, khusus Paket)</label>
           <input type="url" id="productImage" class="form-input" placeholder="https://example.com/image.jpg" />
           <small class="form-hint" style="color:var(--color-text-muted); font-size:0.75rem; margin-top:4px; display:block;">Kosongkan untuk menggunakan warna gradasi bawaan.</small>
+        </div>
+        <div class="form-group" id="minOrderGroup" style="display:none;">
+          <label class="form-label">Minimal Pembelian</label>
+          <input type="number" id="productMinOrder" class="form-input" value="1" min="1" />
+          <small class="form-hint" style="color:var(--color-text-muted); font-size:0.75rem; margin-top:4px; display:block;">Jumlah minimum yang bisa dipesan customer untuk produk ini.</small>
+        </div>
+        <div class="form-group" id="categoryGroup" style="display:none;">
+          <label class="form-label">Kategori</label>
+          <select id="productCategory" class="form-select">
+            <option value="">— Pilih Kategori —</option>
+            <option value="Rokok">🚬 Rokok</option>
+            <option value="Minuman">🥛 Minuman</option>
+            <option value="Makanan">🍜 Makanan</option>
+            <option value="Aksesoris">🔥 Aksesoris</option>
+            <option value="Lainnya">📦 Lainnya</option>
+          </select>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -278,6 +321,12 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
     itemsGroup.style.display = isPaket ? 'block' : 'none';
     const imgGroup = document.getElementById('imageGroup');
     if (imgGroup) imgGroup.style.display = isPaket ? 'block' : 'none';
+    const batchGroup = document.getElementById('batchGroup');
+    if (batchGroup) batchGroup.style.display = isPaket ? 'block' : 'none';
+    const minOrderGroup = document.getElementById('minOrderGroup');
+    if (minOrderGroup) minOrderGroup.style.display = isPaket ? 'none' : 'block';
+    const categoryGroup = document.getElementById('categoryGroup');
+    if (categoryGroup) categoryGroup.style.display = isPaket ? 'none' : 'block';
   });
 
   document.querySelectorAll('.edit-product-btn').forEach(btn => {
@@ -291,12 +340,21 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
       document.getElementById('productDescription').value = product.description || '';
       document.getElementById('productImage').value = product.image || '';
       document.getElementById('productItems').value = (product.items || []).join('\n');
+      document.getElementById('productBatchId').value = product.batchId || '';
+      document.getElementById('productMinOrder').value = product.minOrder || 1;
+      document.getElementById('productCategory').value = product.category || '';
       document.getElementById('productSortOrder').value = product.sortOrder || 0;
       document.getElementById('productIsActive').value = String(product.isActive);
       const isPaket = product.type === 'paket';
       itemsGroup.style.display = isPaket ? 'block' : 'none';
       const imgGroup = document.getElementById('imageGroup');
       if (imgGroup) imgGroup.style.display = isPaket ? 'block' : 'none';
+      const batchGroup = document.getElementById('batchGroup');
+      if (batchGroup) batchGroup.style.display = isPaket ? 'block' : 'none';
+      const minOrderGroup = document.getElementById('minOrderGroup');
+      if (minOrderGroup) minOrderGroup.style.display = isPaket ? 'none' : 'block';
+      const categoryGroup = document.getElementById('categoryGroup');
+      if (categoryGroup) categoryGroup.style.display = isPaket ? 'none' : 'block';
       openModal();
     });
   });
@@ -317,15 +375,19 @@ const satuanProducts = allProducts.filter(p => p.type === 'satuan');
     e.preventDefault();
     const productId = document.getElementById('productId').value;
     const isEdit = !!productId;
+    const productType = document.getElementById('productType').value;
     const data = {
       id: isEdit ? parseInt(productId) : undefined,
       name: document.getElementById('productName').value,
-      type: document.getElementById('productType').value,
+      type: productType,
       price: document.getElementById('productPrice').value,
       description: document.getElementById('productDescription').value,
       image: document.getElementById('productImage').value,
-      items: document.getElementById('productType').value === 'paket'
+      items: productType === 'paket'
         ? document.getElementById('productItems').value.split('\n').filter(i => i.trim()) : null,
+      batchId: productType === 'paket' ? document.getElementById('productBatchId').value || null : null,
+      minOrder: productType === 'satuan' ? document.getElementById('productMinOrder').value || 1 : 1,
+      category: productType === 'satuan' ? document.getElementById('productCategory').value || null : null,
       sortOrder: document.getElementById('productSortOrder').value,
       isActive: document.getElementById('productIsActive').value === 'true',
     };

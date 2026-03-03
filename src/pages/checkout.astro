@@ -3,31 +3,23 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { db } from '../lib/db';
-import { settings } from '../lib/schema';
+import { settings, batches, getBatchStatus } from '../lib/schema';
+import { eq } from 'drizzle-orm';
 
-// Fetch batch settings
+// Fetch batch status from batches table
 let batchOpen = true; // default: allow if no batch config
 let batchEndStr = '';
 try {
-  const allSettings = await db.select().from(settings);
-  const sMap: Record<string, string> = {};
-  allSettings.forEach(s => { sMap[s.key] = s.value; });
-
-  const batchActive = sMap.batch_active === 'true';
-  const batchStart = sMap.batch_start || '';
-  const batchEnd = sMap.batch_end || '';
-
-  if (batchActive && batchStart && batchEnd) {
-    const now = new Date();
-    const start = new Date(batchStart);
-    const end = new Date(batchEnd);
-    batchOpen = now >= start && now <= end;
-    batchEndStr = batchEnd;
-  } else if (batchActive && (!batchStart || !batchEnd)) {
-    batchOpen = false; // batch enabled but no dates = closed
+  const activeBatch = await db.select().from(batches).where(eq(batches.isActive, true)).limit(1);
+  if (activeBatch.length > 0) {
+    const b = activeBatch[0];
+    const status = getBatchStatus(b);
+    batchOpen = status === 'open';
+    batchEndStr = b.endAt.toISOString();
   }
+  // If no active batch, allow checkout (batch system not in use)
 } catch (e) {
-  console.error('Error fetching batch settings:', e);
+  console.error('Error fetching batch status:', e);
 }
 ---
 
@@ -196,6 +188,8 @@ try {
     catch { return []; }
   }
 
+  document.addEventListener('astro:page-load', () => {
+
   function renderCheckout() {
     const cart = getCart();
     const orderItems = document.getElementById('orderItems');
@@ -218,28 +212,29 @@ try {
     if (orderSummaryBar) orderSummaryBar.style.display = 'block';
     if (submitBtn) submitBtn.disabled = false;
 
-    const itemsHtml = cart.map(item => `
+    const itemsHtml = cart.map(item => {
+      const minOrder = item.minOrder || 1;
+      const atMin = item.quantity <= minOrder;
+      return `
       <div class="oi">
         <div class="oi-main">
           <div class="oi-icon">${item.type === 'paket' ? '📦' : '🚬'}</div>
           <div class="oi-details">
             <h4>${item.name}</h4>
             ${item.items ? `<div class="oi-sub">${item.items.map(i => `<small>• ${i}</small>`).join('')}</div>` : ''}
+            ${minOrder > 1 ? `<div class="oi-min-info">📋 Min. ${minOrder} pcs</div>` : ''}
           </div>
         </div>
         <div class="oi-meta">
           <div class="oi-qty">
-            <button class="oi-qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
+            <button class="oi-qty-btn ${atMin ? 'oi-qty-btn-del' : ''}" onclick="${atMin ? `removeItem(${item.id})` : `changeQty(${item.id}, -1)`}">${atMin ? '🗑️' : '−'}</button>
             <span>${item.quantity}</span>
             <button class="oi-qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
           </div>
           <div class="oi-price">Rp ${(item.price * item.quantity).toLocaleString('id-ID')}</div>
-          <button class="oi-remove" onclick="removeItem(${item.id})">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
     if (orderItems) {
       // Keep the empty state element, but replace items
@@ -259,8 +254,9 @@ try {
     const cart = getCart();
     const item = cart.find(i => i.id === pid);
     if (item) {
+      const minOrder = item.minOrder || 1;
       item.quantity += delta;
-      if (item.quantity <= 0) { removeItem(pid); return; }
+      if (item.quantity < minOrder) { removeItem(pid); return; }
       localStorage.setItem(CART_KEY, JSON.stringify(cart));
     }
     renderCheckout();
@@ -328,6 +324,8 @@ try {
   });
 
   renderCheckout();
+
+  }); // end astro:page-load
 </script>
 
 <style>
@@ -476,6 +474,24 @@ try {
   .oi-qty-btn:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
+  }
+
+  .oi-qty-btn-del {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.2) !important;
+    font-size: 0.7rem !important;
+  }
+
+  .oi-qty-btn-del:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+  }
+
+  .oi-min-info {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--color-secondary, #f59e0b);
+    margin-top: 3px;
   }
 
   .oi-price {

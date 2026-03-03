@@ -1,0 +1,625 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { batches, orders, getBatchStatus } from '../../lib/schema';
+import { getAdminUser } from '../../lib/auth';
+import { eq, desc, count } from 'drizzle-orm';
+
+const adminUser = getAdminUser(Astro.request);
+if (adminUser?.role !== 'super_admin') {
+  return Astro.redirect('/admin');
+}
+
+// Fetch all batches with order counts
+const allBatches = await db.select().from(batches).orderBy(desc(batches.batchNumber));
+
+const orderCounts = await db
+  .select({ batchId: orders.batchId, count: count() })
+  .from(orders)
+  .groupBy(orders.batchId);
+
+const countMap: Record<number, number> = {};
+orderCounts.forEach(oc => {
+  if (oc.batchId) countMap[oc.batchId] = oc.count;
+});
+
+const batchesData = allBatches.map(b => ({
+  ...b,
+  status: b.isActive ? getBatchStatus(b) : 'closed' as const,
+  orderCount: countMap[b.id] || 0,
+}));
+
+const activeBatch = batchesData.find(b => b.isActive);
+
+// Helper to format date for display 
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// Helper for datetime-local input
+function toDatetimeLocal(d: Date): string {
+  const wib = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+  return wib.toISOString().slice(0, 16);
+}
+---
+
+<AdminLayout title="Kelola Batch" activeMenu="batches">
+  <!-- Active Batch Status -->
+  <div class="batch-hero">
+    {activeBatch ? (
+      <div class={`batch-active-card batch-card-${activeBatch.status}`}>
+        <div class="bac-header">
+          <div class="bac-info">
+            <div class="bac-number">Batch {activeBatch.batchNumber}</div>
+            <div class="bac-name">{activeBatch.name || `Batch ${activeBatch.batchNumber}`}</div>
+          </div>
+          <div class="bac-status-group">
+            <span class={`bac-status bac-status-${activeBatch.status}`}>
+              {activeBatch.status === 'open' ? '🟢 Sedang Berjalan' :
+               activeBatch.status === 'upcoming' ? '🟡 Akan Datang' : '🔴 Berakhir'}
+            </span>
+            <span class="bac-orders">{activeBatch.orderCount} pesanan</span>
+          </div>
+        </div>
+        <div class="bac-dates">
+          <div class="bac-date-item">
+            <small>Mulai</small>
+            <span>{fmtDate(activeBatch.startAt)}</span>
+          </div>
+          <div class="bac-date-sep">→</div>
+          <div class="bac-date-item">
+            <small>Berakhir</small>
+            <span>{fmtDate(activeBatch.endAt)}</span>
+          </div>
+        </div>
+        {(activeBatch.status === 'open' || activeBatch.status === 'upcoming') && (
+          <div class="bac-countdown" id="batchCountdown" data-end={activeBatch.endAt.toISOString()} data-start={activeBatch.startAt.toISOString()} data-status={activeBatch.status}>
+            ⏳ Menghitung...
+          </div>
+        )}
+      </div>
+    ) : (
+      <div class="batch-empty-card">
+        <div class="batch-empty-icon">📦</div>
+        <h3>Belum Ada Batch Aktif</h3>
+        <p>Buat batch pertama untuk mulai menerima pesanan</p>
+      </div>
+    )}
+  </div>
+
+  <!-- Create New Batch -->
+  <div class="batch-section">
+    <div class="bs-header">
+      <h2>🆕 Buat Batch Baru</h2>
+      <span class="bs-hint">Batch baru akan otomatis menjadi batch aktif</span>
+    </div>
+    <form class="batch-form" id="createBatchForm">
+      <div class="bf-row">
+        <div class="form-group">
+          <label class="form-label">Nama Batch <span class="form-optional">(opsional)</span></label>
+          <input type="text" name="name" class="form-input" placeholder={`contoh: Batch ${(allBatches[0]?.batchNumber || 0) + 1} - Maret 2026`} />
+        </div>
+      </div>
+      <div class="bf-row bf-row-2">
+        <div class="form-group">
+          <label class="form-label">Waktu Mulai</label>
+          <input type="datetime-local" name="start_at" class="form-input" required />
+          <small class="form-hint">WIB (UTC+7)</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Waktu Berakhir</label>
+          <input type="datetime-local" name="end_at" class="form-input" required />
+          <small class="form-hint">WIB (UTC+7)</small>
+        </div>
+      </div>
+      {activeBatch && activeBatch.status !== 'closed' && (
+        <div class="bf-warning">
+          ⚠️ Batch {activeBatch.batchNumber} yang sedang aktif akan otomatis dinonaktifkan
+        </div>
+      )}
+      <button type="submit" class="btn btn-primary btn-full" id="createBatchBtn">
+        🚀 Buat Batch {(allBatches[0]?.batchNumber || 0) + 1}
+      </button>
+    </form>
+  </div>
+
+  <!-- Edit Active Batch -->
+  {activeBatch && (
+    <div class="batch-section">
+      <div class="bs-header">
+        <h2>✏️ Edit Batch {activeBatch.batchNumber}</h2>
+        <span class="bs-hint">Ubah waktu atau nama batch aktif</span>
+      </div>
+      <form class="batch-form" id="editBatchForm" data-id={activeBatch.id}>
+        <div class="bf-row">
+          <div class="form-group">
+            <label class="form-label">Nama Batch</label>
+            <input type="text" name="name" class="form-input" value={activeBatch.name || ''} />
+          </div>
+        </div>
+        <div class="bf-row bf-row-2">
+          <div class="form-group">
+            <label class="form-label">Waktu Mulai</label>
+            <input type="datetime-local" name="start_at" class="form-input" value={toDatetimeLocal(activeBatch.startAt)} required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Waktu Berakhir</label>
+            <input type="datetime-local" name="end_at" class="form-input" value={toDatetimeLocal(activeBatch.endAt)} required />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">💾 Simpan Perubahan</button>
+      </form>
+    </div>
+  )}
+
+  <!-- Batch History -->
+  <div class="batch-section">
+    <div class="bs-header">
+      <h2>📜 Riwayat Batch</h2>
+      <span class="bs-hint">{allBatches.length} batch total</span>
+    </div>
+    {allBatches.length > 0 ? (
+      <div class="batch-history">
+        {batchesData.map(b => (
+          <div class={`bh-card ${b.isActive ? 'bh-card-active' : ''}`} data-batch-id={b.id}>
+            <div class="bh-left">
+              <div class="bh-number">#{b.batchNumber}</div>
+              <div class="bh-details">
+                <strong>{b.name || `Batch ${b.batchNumber}`}</strong>
+                <span class="bh-date">{fmtDate(b.startAt)} — {fmtDate(b.endAt)}</span>
+              </div>
+            </div>
+            <div class="bh-right">
+              <span class={`bh-status bh-status-${b.status}`}>
+                {b.isActive && b.status === 'open' ? '🟢 Aktif' :
+                 b.isActive && b.status === 'upcoming' ? '🟡 Akan Datang' :
+                 b.isActive && b.status === 'closed' ? '🔴 Berakhir' :
+                 '⚫ Selesai'}
+              </span>
+              <span class="bh-orders">{b.orderCount} pesanan</span>
+              {!b.isActive && b.orderCount === 0 && (
+                <button class="bh-delete-btn" data-id={b.id} title="Hapus batch">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="bh-empty">
+        <p class="text-muted">Belum ada riwayat batch</p>
+      </div>
+    )}
+  </div>
+</AdminLayout>
+
+<script>
+  // ===== CREATE BATCH =====
+  document.getElementById('createBatchForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const btn = document.getElementById('createBatchBtn');
+    
+    const startVal = formData.get('start_at') as string;
+    const endVal = formData.get('end_at') as string;
+
+    if (!startVal || !endVal) {
+      window.showToast?.('Waktu mulai dan berakhir wajib diisi', 'error');
+      return;
+    }
+
+    if (btn) { btn.textContent = '⏳ Membuat...'; (btn as HTMLButtonElement).disabled = true; }
+
+    try {
+      const res = await fetch('/api/batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.get('name') || '',
+          start_at: startVal + ':00+07:00',
+          end_at: endVal + ':00+07:00',
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        window.showToast?.(result.message);
+        setTimeout(() => location.reload(), 500);
+      } else {
+        window.showToast?.(result.message || 'Gagal membuat batch', 'error');
+      }
+    } catch {
+      window.showToast?.('Terjadi kesalahan', 'error');
+    } finally {
+      if (btn) { btn.textContent = '🚀 Buat Batch'; (btn as HTMLButtonElement).disabled = false; }
+    }
+  });
+
+  // ===== EDIT BATCH =====
+  document.getElementById('editBatchForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const batchId = parseInt(form.dataset.id || '0');
+    const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+    if (btn) { btn.textContent = '⏳ Menyimpan...'; btn.disabled = true; }
+
+    try {
+      const res = await fetch('/api/batches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: batchId,
+          name: formData.get('name') || '',
+          start_at: (formData.get('start_at') as string) + ':00+07:00',
+          end_at: (formData.get('end_at') as string) + ':00+07:00',
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        window.showToast?.('Batch berhasil diperbarui');
+        setTimeout(() => location.reload(), 500);
+      } else {
+        window.showToast?.(result.message || 'Gagal menyimpan', 'error');
+      }
+    } catch {
+      window.showToast?.('Terjadi kesalahan', 'error');
+    } finally {
+      if (btn) { btn.textContent = '💾 Simpan Perubahan'; btn.disabled = false; }
+    }
+  });
+
+  // ===== DELETE BATCH =====
+  document.querySelectorAll('.bh-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt((btn as HTMLElement).dataset.id || '0');
+      if (!confirm('Hapus batch ini?')) return;
+
+      try {
+        const res = await fetch('/api/batches', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        const result = await res.json();
+        if (result.success) {
+          window.showToast?.('Batch dihapus');
+          (btn as HTMLElement).closest('.bh-card')?.remove();
+        } else {
+          window.showToast?.(result.message || 'Gagal menghapus', 'error');
+        }
+      } catch {
+        window.showToast?.('Terjadi kesalahan', 'error');
+      }
+    });
+  });
+
+  // ===== COUNTDOWN =====
+  function updateCountdown() {
+    const el = document.getElementById('batchCountdown');
+    if (!el) return;
+
+    const endStr = el.dataset.end;
+    const startStr = el.dataset.start;
+    const status = el.dataset.status;
+    const now = new Date();
+
+    let diff = 0;
+    let prefix = '';
+
+    if (status === 'upcoming' && startStr) {
+      diff = new Date(startStr).getTime() - now.getTime();
+      prefix = 'Mulai dalam ';
+    } else if (endStr) {
+      diff = new Date(endStr).getTime() - now.getTime();
+      prefix = 'Berakhir dalam ';
+    }
+
+    if (diff <= 0) {
+      el.textContent = status === 'upcoming' ? '🟢 Batch sudah dimulai!' : '🔴 Batch sudah berakhir';
+      return;
+    }
+
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+
+    let parts = [];
+    if (days > 0) parts.push(`${days}h`);
+    if (hours > 0) parts.push(`${hours}j`);
+    parts.push(`${mins}m`);
+    parts.push(`${secs}d`);
+
+    el.textContent = `⏳ ${prefix}${parts.join(' ')}`;
+  }
+
+  setInterval(updateCountdown, 1000);
+  updateCountdown();
+</script>
+
+<style>
+  /* ===== BATCH HERO ===== */
+  .batch-hero { margin-bottom: 24px; }
+
+  .batch-active-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: 28px;
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .batch-card-open { border-left: 4px solid #22C55E; }
+  .batch-card-upcoming { border-left: 4px solid #F59E0B; }
+  .batch-card-closed { border-left: 4px solid #EF4444; }
+
+  .bac-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .bac-number {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 900;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .bac-name {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+  }
+
+  .bac-status-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .bac-status {
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: var(--radius-full);
+  }
+
+  .bac-status-open { background: rgba(34,197,94,0.08); color: #16A34A; }
+  .bac-status-upcoming { background: rgba(245,158,11,0.08); color: #D97706; }
+  .bac-status-closed { background: rgba(239,68,68,0.08); color: #DC2626; }
+
+  .bac-orders {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  .bac-dates {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+  }
+
+  .bac-date-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .bac-date-item small { font-size: 0.72rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .bac-date-item span { font-size: 0.88rem; font-weight: 700; color: var(--color-text-primary); }
+
+  .bac-date-sep {
+    font-size: 1.2rem;
+    color: var(--color-text-muted);
+    font-weight: 700;
+  }
+
+  .bac-countdown {
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    padding: 10px 18px;
+    background: var(--color-accent-bg);
+    border-radius: var(--radius-md);
+  }
+
+  .batch-empty-card {
+    text-align: center;
+    padding: 48px 24px;
+    background: white;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-2xl);
+  }
+
+  .batch-empty-icon { font-size: 2.5rem; opacity: 0.2; margin-bottom: 12px; }
+  .batch-empty-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+  .batch-empty-card p { font-size: 0.88rem; color: var(--color-text-muted); }
+
+  /* ===== SECTIONS ===== */
+  .batch-section {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 20px;
+  }
+
+  .bs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bs-header h2 { font-size: 1rem; font-weight: 700; }
+  .bs-hint { font-size: 0.78rem; color: var(--color-text-muted); }
+
+  /* ===== BATCH FORM ===== */
+  .batch-form { display: flex; flex-direction: column; gap: 14px; }
+  .bf-row { display: flex; flex-direction: column; gap: 14px; }
+  .bf-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .bf-warning {
+    padding: 12px 16px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #92400E;
+  }
+
+  .form-optional {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ===== BATCH HISTORY ===== */
+  .batch-history {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bh-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: border-color 0.15s;
+    gap: 12px;
+  }
+
+  .bh-card:hover { border-color: var(--color-border-hover); }
+  .bh-card-active { border-left: 3px solid var(--color-accent); background: rgba(79,70,229,0.02); }
+
+  .bh-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bh-number {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: var(--color-accent);
+    flex-shrink: 0;
+    min-width: 36px;
+  }
+
+  .bh-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .bh-details strong { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bh-date { font-size: 0.75rem; color: var(--color-text-muted); }
+
+  .bh-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .bh-status {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+  }
+
+  .bh-status-open { background: rgba(34,197,94,0.08); color: #16A34A; }
+  .bh-status-upcoming { background: rgba(245,158,11,0.08); color: #D97706; }
+  .bh-status-closed { background: rgba(100,116,139,0.08); color: #64748B; }
+
+  .bh-orders {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  .bh-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .bh-delete-btn:hover {
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--color-danger);
+  }
+
+  .bh-empty {
+    text-align: center;
+    padding: 32px;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .batch-active-card { padding: 20px; }
+    .bac-header { flex-direction: column; gap: 12px; }
+    .bac-status-group { align-items: flex-start; }
+    .bac-dates { flex-direction: column; gap: 10px; }
+    .bac-date-sep { display: none; }
+    .bf-row-2 { grid-template-columns: 1fr; }
+
+    .bh-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .bh-right { width: 100%; justify-content: space-between; }
+  }
+
+  @media (max-width: 480px) {
+    .batch-section { padding: 16px; }
+    .batch-active-card { padding: 16px; }
+    .bac-number { font-size: 1.2rem; }
+  }
+</style>

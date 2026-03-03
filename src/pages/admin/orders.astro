@@ -9,6 +9,10 @@ const adminUser = getAdminUser(Astro.request);
 const allowedOffices = getAllowedOffices(Astro.request);
 const isSuperAdmin = adminUser?.role === 'super_admin';
 
+// Get batch filter from URL
+const batchParam = new URL(Astro.request.url).searchParams.get('batch');
+const filterBatchId = batchParam && batchParam !== 'all' ? parseInt(batchParam) : null;
+
 let allOrders: any[] = [];
 try {
   let fetchedOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
@@ -16,6 +20,11 @@ try {
   // Filter orders by allowed offices for regular admins
   if (allowedOffices !== null) {
     fetchedOrders = fetchedOrders.filter(o => allowedOffices.includes(o.kelompok));
+  }
+
+  // Filter by batch if selected
+  if (filterBatchId) {
+    fetchedOrders = fetchedOrders.filter(o => o.batchId === filterBatchId);
   }
   
   allOrders = fetchedOrders;
@@ -278,6 +287,11 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
 </AdminLayout>
 
 <script>
+document.addEventListener('astro:page-load', () => {
+  // Guard: only run on orders page
+  const ordersTable = document.getElementById('ordersTable');
+  if (!ordersTable) return;
+
   // ===== STATE =====
   let activeStatusFilter = 'all';
   let activeKelompokFilter = 'all';
@@ -679,6 +693,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
 
   // ===== INITIAL RENDER =====
   applyFilters();
+}); // end astro:page-load
 </script>
 
 <style>

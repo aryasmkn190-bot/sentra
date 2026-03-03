@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "batch_id" integer;

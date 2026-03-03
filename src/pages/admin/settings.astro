@@ -16,41 +16,11 @@ try {
 } catch (error) {
   console.error('Error fetching settings:', error);
 }
-
-// Batch helper
-// Strip timezone for datetime-local input (display as WIB local time)
-function toDatetimeLocal(isoStr: string): string {
-  if (!isoStr) return '';
-  // If stored with +07:00, convert to local display format YYYY-MM-DDTHH:mm
-  const d = new Date(isoStr);
-  if (isNaN(d.getTime())) return isoStr.slice(0, 16); // fallback
-  // Offset to WIB (+7h)
-  const wib = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-  return wib.toISOString().slice(0, 16);
-}
-
-const batchStart = currentSettings.batch_start || '';
-const batchEnd = currentSettings.batch_end || '';
-const batchName = currentSettings.batch_name || '';
-const batchStartLocal = toDatetimeLocal(batchStart);
-const batchEndLocal = toDatetimeLocal(batchEnd);
-const batchActive = currentSettings.batch_active === 'true';
-
-// Determine batch status server-side for initial render
-let batchStatus: 'inactive' | 'upcoming' | 'active' | 'ended' = 'inactive';
-if (batchActive && batchStart && batchEnd) {
-  const now = new Date();
-  const start = new Date(batchStart);
-  const end = new Date(batchEnd);
-  if (now < start) batchStatus = 'upcoming';
-  else if (now >= start && now <= end) batchStatus = 'active';
-  else batchStatus = 'ended';
-}
 ---
 
 <AdminLayout title="Pengaturan" activeMenu="settings">
   <div class="settings-grid">
-    <!-- Batch Ordering -->
+    <!-- Batch Management Link -->
     <div class="settings-card settings-card-wide">
       <div class="sc-header">
         <div class="sc-icon" style="background: linear-gradient(135deg, #EF4444, #F97316);">
@@ -58,58 +28,10 @@ if (batchActive && batchStart && batchEnd) {
         </div>
         <div class="sc-title-group">
           <h3>Sesi Batch Pembelian</h3>
-          <span class="sc-subtitle">Atur periode waktu pembelian dapat dilakukan</span>
+          <span class="sc-subtitle">Kelola batch pembelian dari halaman khusus</span>
         </div>
       </div>
-
-      <!-- Batch Status Banner -->
-      <div class={`batch-status-banner batch-status-${batchStatus}`} id="batchStatusBanner">
-        <div class="batch-status-indicator">
-          <span class={`batch-dot batch-dot-${batchStatus}`}></span>
-          <span class="batch-status-text" id="batchStatusText">
-            {batchStatus === 'active' ? '🟢 Batch Sedang Aktif' :
-             batchStatus === 'upcoming' ? '🟡 Batch Akan Datang' :
-             batchStatus === 'ended' ? '🔴 Batch Sudah Berakhir' :
-             '⚪ Batch Tidak Aktif'}
-          </span>
-        </div>
-        {batchStatus === 'active' && (
-          <div class="batch-countdown" id="batchCountdown">Menghitung...</div>
-        )}
-        {batchStatus === 'upcoming' && (
-          <div class="batch-countdown" id="batchCountdown">Menghitung...</div>
-        )}
-      </div>
-
-      <form class="settings-form" data-section="batch" id="batchForm">
-        <div class="form-group">
-          <label class="form-label">Nama Batch <span class="form-optional">(opsional)</span></label>
-          <input type="text" name="batch_name" class="form-input" value={batchName} placeholder="contoh: Batch Februari 2026" />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Mulai</label>
-            <input type="datetime-local" name="batch_start" class="form-input" value={batchStartLocal} id="batchStartInput" />
-            <small class="form-hint">Waktu Indonesia Barat (WIB, UTC+7)</small>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Berakhir</label>
-            <input type="datetime-local" name="batch_end" class="form-input" value={batchEndLocal} id="batchEndInput" />
-            <small class="form-hint">Waktu Indonesia Barat (WIB, UTC+7)</small>
-          </div>
-        </div>
-        <div class="batch-toggle-row">
-          <div class="toggle-info">
-            <strong>Aktifkan Batch</strong>
-            <small>Jika aktif, pembelian hanya bisa dilakukan saat periode batch berlangsung</small>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" name="batch_active" value="true" checked={batchActive} id="batchActiveToggle" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">💾 Simpan Pengaturan Batch</button>
-      </form>
+      <a href="/admin/batches" class="btn btn-primary btn-full">📋 Buka Kelola Batch</a>
     </div>
 
     <!-- Store Info -->
@@ -245,112 +167,12 @@ if (batchActive && batchStart && batchEnd) {
         const result = await res.json();
         if (result.success) {
           window.showToast?.('Pengaturan disimpan');
-          if (section === 'batch') updateBatchStatus();
         }
         else { window.showToast?.('Gagal menyimpan', 'error'); }
       } catch { window.showToast?.('Terjadi kesalahan', 'error'); }
       finally { btn.textContent = originalText; btn.disabled = false; }
     });
   });
-
-  // ===== BATCH STATUS & COUNTDOWN =====
-  function updateBatchStatus() {
-    const toggle = document.getElementById('batchActiveToggle') as HTMLInputElement;
-    const startInput = document.getElementById('batchStartInput') as HTMLInputElement;
-    const endInput = document.getElementById('batchEndInput') as HTMLInputElement;
-    const banner = document.getElementById('batchStatusBanner');
-    const statusText = document.getElementById('batchStatusText');
-    let countdown = document.getElementById('batchCountdown');
-
-    if (!banner || !statusText) return;
-
-    const isActive = toggle?.checked;
-    const start = startInput?.value ? new Date(startInput.value) : null;
-    const end = endInput?.value ? new Date(endInput.value) : null;
-    const now = new Date();
-
-    // Remove old status classes
-    banner.className = 'batch-status-banner';
-
-    let status = 'inactive';
-    if (isActive && start && end) {
-      if (now < start) status = 'upcoming';
-      else if (now >= start && now <= end) status = 'active';
-      else status = 'ended';
-    }
-
-    banner.classList.add(`batch-status-${status}`);
-
-    const labels: Record<string, string> = {
-      active: '🟢 Batch Sedang Aktif',
-      upcoming: '🟡 Batch Akan Datang',
-      ended: '🔴 Batch Sudah Berakhir',
-      inactive: '⚪ Batch Tidak Aktif',
-    };
-    statusText.textContent = labels[status];
-
-    // Handle countdown
-    if (!countdown && (status === 'active' || status === 'upcoming')) {
-      countdown = document.createElement('div');
-      countdown.className = 'batch-countdown';
-      countdown.id = 'batchCountdown';
-      banner.querySelector('.batch-status-indicator')?.after(countdown);
-    }
-
-    if (countdown) {
-      if (status === 'active' || status === 'upcoming') {
-        countdown.style.display = '';
-      } else {
-        countdown.style.display = 'none';
-      }
-    }
-  }
-
-  function updateCountdown() {
-    const toggle = document.getElementById('batchActiveToggle') as HTMLInputElement;
-    const startInput = document.getElementById('batchStartInput') as HTMLInputElement;
-    const endInput = document.getElementById('batchEndInput') as HTMLInputElement;
-    const countdown = document.getElementById('batchCountdown');
-
-    if (!countdown || !toggle?.checked) return;
-
-    const start = startInput?.value ? new Date(startInput.value) : null;
-    const end = endInput?.value ? new Date(endInput.value) : null;
-    const now = new Date();
-
-    if (!start || !end) return;
-
-    let diff = 0;
-    let prefix = '';
-
-    if (now < start) {
-      diff = start.getTime() - now.getTime();
-      prefix = 'Mulai dalam ';
-    } else if (now <= end) {
-      diff = end.getTime() - now.getTime();
-      prefix = 'Berakhir dalam ';
-    } else {
-      countdown.textContent = 'Batch sudah berakhir';
-      return;
-    }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-    let parts: string[] = [];
-    if (days > 0) parts.push(`${days}h`);
-    if (hours > 0) parts.push(`${hours}j`);
-    parts.push(`${mins}m`);
-    parts.push(`${secs}d`);
-
-    countdown.textContent = prefix + parts.join(' ');
-  }
-
-  // Update countdown every second
-  setInterval(updateCountdown, 1000);
-  updateCountdown();
 </script>
 
 <style>
