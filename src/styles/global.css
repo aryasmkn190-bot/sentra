@@ -347,11 +347,13 @@ ol {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-bg-secondary);
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 0;
 }
 
 .table th,
@@ -368,6 +370,7 @@ ol {
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .table td {
@@ -384,6 +387,84 @@ ol {
 
 .table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* ===== Responsive Tables ===== */
+@media (max-width: 768px) {
+  .table-wrapper {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    overflow-x: visible;
+  }
+
+  .table,
+  .table thead,
+  .table tbody,
+  .table th,
+  .table td,
+  .table tr {
+    display: block;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody tr {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .table tbody tr:hover {
+    background: var(--color-bg-secondary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    font-size: 0.84rem;
+  }
+
+  .table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .table td:first-child {
+    padding-top: 0;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    min-width: 80px;
+    padding-top: 2px;
+  }
+
+  .table td .badge {
+    font-size: 0.65rem;
+  }
+
+  .table td .btn,
+  .table td .btn-sm {
+    font-size: 0.72rem;
+    padding: 4px 10px;
+  }
 }
 
 /* ========== Animations ========== */

@@ -287,11 +287,11 @@ const statusLabels: Record<string, string> = {
         <tbody id="breakdownContainer">
           {[...satuanItems, ...paketItems].sort((a, b) => b.quantity - a.quantity).slice(0, 5).map((item, idx) => (
             <tr class="modern-tr">
-              <td><span class="modern-rank">#{idx + 1}</span></td>
-              <td><strong>{item.name}</strong></td>
-              <td style="text-align:center;"><span class={`badge ${item.type === 'paket' ? 'badge-primary' : 'badge-neutral'}`}>{item.type === 'paket' ? '📦 Paket' : '🚬 Satuan'}</span></td>
-              <td style="text-align:right;"><span class="qty-highlight">{item.quantity}</span> <small class="text-muted">pcs</small></td>
-              <td style="text-align:right; font-family: var(--font-heading);"><strong class="text-accent">Rp {item.revenue.toLocaleString('id-ID')}</strong></td>
+              <td data-label="#"><span class="modern-rank">#{idx + 1}</span></td>
+              <td data-label="Produk"><strong>{item.name}</strong></td>
+              <td data-label="Tipe" style="text-align:center;"><span class={`badge ${item.type === 'paket' ? 'badge-primary' : 'badge-neutral'}`}>{item.type === 'paket' ? '📦 Paket' : '🚬 Satuan'}</span></td>
+              <td data-label="Jumlah" style="text-align:right;"><span class="qty-highlight">{item.quantity}</span> <small class="text-muted">pcs</small></td>
+              <td data-label="Pendapatan" style="text-align:right; font-family: var(--font-heading);"><strong class="text-accent">Rp {item.revenue.toLocaleString('id-ID')}</strong></td>
             </tr>
           ))}
         </tbody>
@@ -326,10 +326,10 @@ const statusLabels: Record<string, string> = {
         <tbody id="shoppingContainer">
           {sortedShoppingList.length > 0 ? sortedShoppingList.map((item, idx) => (
             <tr class="modern-tr">
-              <td><span class="modern-rank">#{idx + 1}</span></td>
-              <td><strong>{item.name}</strong></td>
-              <td style="text-align:right;"><span class="qty-highlight">{item.totalQty}</span> <small class="text-muted">pcs</small></td>
-              <td>
+              <td data-label="#"><span class="modern-rank">#{idx + 1}</span></td>
+              <td data-label="Produk"><strong>{item.name}</strong></td>
+              <td data-label="Total" style="text-align:right;"><span class="qty-highlight">{item.totalQty}</span> <small class="text-muted">pcs</small></td>
+              <td data-label="Sumber">
                 <div class="source-tags">
                   {Object.entries(item.sources).map(([src, qty]) => (
                     <span class={`source-tag ${src === 'Satuan' ? 'source-tag-satuan' : 'source-tag-paket'}`}>
@@ -732,11 +732,11 @@ document.addEventListener('astro:page-load', () => {
           const rank = sliceStart + idx + 1;
           const isPaket = item.type === 'paket';
           return `<tr class="modern-tr" style="animation-delay: ${idx * 0.03}s">
-            <td><span class="modern-rank">#${rank}</span></td>
-            <td><strong>${item.name}</strong></td>
-            <td style="text-align:center;"><span class="badge ${isPaket ? 'badge-primary' : 'badge-neutral'}">${isPaket ? '📦 Paket' : '🚬 Satuan'}</span></td>
-            <td class="text-right"><span class="qty-highlight">${item.quantity}</span> <small class="text-muted">pcs</small></td>
-            <td class="text-right text-accent" style="font-family: var(--font-heading);"><strong>Rp ${item.revenue.toLocaleString('id-ID')}</strong></td>
+            <td data-label="#"><span class="modern-rank">#${rank}</span></td>
+            <td data-label="Produk"><strong>${item.name}</strong></td>
+            <td data-label="Tipe" style="text-align:center;"><span class="badge ${isPaket ? 'badge-primary' : 'badge-neutral'}">${isPaket ? '📦 Paket' : '🚬 Satuan'}</span></td>
+            <td data-label="Jumlah" class="text-right"><span class="qty-highlight">${item.quantity}</span> <small class="text-muted">pcs</small></td>
+            <td data-label="Pendapatan" class="text-right text-accent" style="font-family: var(--font-heading);"><strong>Rp ${item.revenue.toLocaleString('id-ID')}</strong></td>
           </tr>`;
         }).join('');
       }
@@ -798,10 +798,10 @@ document.addEventListener('astro:page-load', () => {
             return `<span class="source-tag ${cls}">${icon} ${src}: ${qty}</span>`;
           }).join('');
           return `<tr class="modern-tr">
-            <td><span class="modern-rank">#${idx + 1}</span></td>
-            <td><strong>${item.name}</strong></td>
-            <td style="text-align:right;"><span class="qty-highlight">${item.totalQty}</span> <small class="text-muted">pcs</small></td>
-            <td><div class="source-tags">${sourceTags}</div></td>
+            <td data-label="#"><span class="modern-rank">#${idx + 1}</span></td>
+            <td data-label="Produk"><strong>${item.name}</strong></td>
+            <td data-label="Total" style="text-align:right;"><span class="qty-highlight">${item.totalQty}</span> <small class="text-muted">pcs</small></td>
+            <td data-label="Sumber"><div class="source-tags">${sourceTags}</div></td>
           </tr>`;
         }).join('');
       }
