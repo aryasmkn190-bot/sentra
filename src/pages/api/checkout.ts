@@ -103,7 +103,8 @@ export const POST: APIRoute = async ({ request }) => {
             // Send QRIS image after text message
             if (waSent) {
                 try {
-                    const siteUrl = new URL(request.url).origin;
+                    // Use the canonical public URL to ensure Evolution API can fetch the image
+                    const siteUrl = 'https://swasembada.bergerak.space';
                     const qrisUrl = `${siteUrl}/qr.jpeg`;
                     await sendWhatsAppImage({
                         number: whatsappNumber,
