@@ -155,7 +155,7 @@ export function formatOrderMessage(order: {
     message += `🏢 *Kantor:* ${order.kelompok}\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `💳 *Segera Lakukan Pembayaran:*\n`;
-    message += `Silakan scan gambar/barcode QRIS di atas untuk melakukan pembayaran.\n\n`;
+    message += `Silakan scan gambar/barcode QRIS yang kami kirimkan setelah pesan ini.\n\n\n`;
     message += `Kirim bukti pembayaran ke nomor ini.\n\n`;
     message += `Terima kasih telah berbelanja di *Sentra*! 🙏`;
 

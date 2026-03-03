@@ -95,25 +95,18 @@ export const POST: APIRoute = async ({ request }) => {
                 paymentInfo,
             });
 
-            waSent = await sendWhatsAppMessage({
+            // Send QRIS image with order formatted text as caption
+            const siteUrl = 'https://swasembada.bergerak.space';
+            const qrisUrl = `${siteUrl}/qr.jpeg`;
+
+            waSent = await sendWhatsAppImage({
                 number: whatsappNumber,
-                message,
+                imageUrl: qrisUrl,
+                caption: message,
             });
 
-            // Send QRIS image after text message
-            if (waSent) {
-                try {
-                    // Use the canonical public URL to ensure Evolution API can fetch the image
-                    const siteUrl = 'https://swasembada.bergerak.space';
-                    const qrisUrl = `${siteUrl}/qr.jpeg`;
-                    await sendWhatsAppImage({
-                        number: whatsappNumber,
-                        imageUrl: qrisUrl,
-                        caption: `💳 Scan QRIS di atas untuk pembayaran pesanan ${orderNumber}\n💰 Total: Rp ${totalAmount.toLocaleString('id-ID')}\n\nKirim bukti transfer ke nomor ini. Terima kasih! 🙏`,
-                    });
-                } catch (imgErr) {
-                    console.error('[WA] Failed to send QRIS image:', imgErr);
-                }
+            if (!waSent) {
+                console.error('[WA] Failed to send QRIS image and caption');
             }
 
             // Update waSent status
