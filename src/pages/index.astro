@@ -294,7 +294,7 @@ function formatBatchDate(dateStr: string): string {
                 </button>
                 <div class="satuan-grid satuan-category-content" style="display:none;">
                   {catProducts.map((product: any, index: number) => (
-                    <div class="satuan-card" data-animate data-product-id={product.id} data-min-order={product.minOrder || 1} style={`animation-delay: ${index * 50}ms`}>
+                    <div class="satuan-card" data-animate data-product-id={product.id} data-min-order={product.minOrder || 1} data-category={cat} style={`animation-delay: ${index * 50}ms`}>
                       <div class="satuan-left">
                         <div class="satuan-avatar">{emoji}</div>
                         <div>
@@ -313,13 +313,14 @@ function formatBatchDate(dateStr: string): string {
                           data-type="satuan"
                           data-price={product.price}
                           data-min-order={product.minOrder || 1}
+                          data-category={cat}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <div class="satuan-counter" style="display:none;">
                           <button class="sc-btn sc-minus" data-id={product.id} data-min-order={product.minOrder || 1}>−</button>
                           <span class="sc-qty">0</span>
-                          <button class="sc-btn sc-plus" data-id={product.id} data-name={product.name} data-type="satuan" data-price={product.price} data-min-order={product.minOrder || 1}>+</button>
+                          <button class="sc-btn sc-plus" data-id={product.id} data-name={product.name} data-type="satuan" data-price={product.price} data-min-order={product.minOrder || 1} data-category={cat}>+</button>
                         </div>
                       </div>
                     </div>
@@ -384,6 +385,13 @@ function formatBatchDate(dateStr: string): string {
   document.addEventListener('astro:page-load', () => {
   function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartUI(); }
 
+  // Restricted categories: Minuman & Aksesoris require paket or rokok in cart
+  const RESTRICTED_CATS = ['Minuman', 'Aksesoris'];
+  function cartHasPaketOrRokok() {
+    const cart = getCart();
+    return cart.some(i => i.type === 'paket' || (i.type === 'satuan' && i.category === 'Rokok'));
+  }
+
   function addToCart(product) {
     const cart = getCart();
     const existing = cart.find(item => item.id === product.id);
@@ -395,7 +403,20 @@ function formatBatchDate(dateStr: string): string {
     window.showToast?.(`${product.name} ditambahkan!`);
   }
 
-  function removeFromCart(pid) { saveCart(getCart().filter(i => i.id !== pid)); }
+  function removeFromCart(pid) {
+    let cart = getCart().filter(i => i.id !== pid);
+    // Auto-remove restricted items if no paket/rokok left
+    const hasPaketOrRokok = cart.some(i => i.type === 'paket' || (i.type === 'satuan' && i.category === 'Rokok'));
+    if (!hasPaketOrRokok) {
+      const removed = cart.filter(i => RESTRICTED_CATS.includes(i.category));
+      if (removed.length > 0) {
+        cart = cart.filter(i => !RESTRICTED_CATS.includes(i.category));
+        window.showToast?.(`⚠️ ${removed.map(r => r.name).join(', ')} dihapus karena perlu Paket/Rokok`, 'error');
+      }
+    }
+    saveCart(cart);
+    updateSatuanCounters();
+  }
   function updateQuantity(pid, d) {
     const cart = getCart();
     const item = cart.find(i => i.id === pid);
@@ -455,7 +476,7 @@ function formatBatchDate(dateStr: string): string {
   // Paket add-to-cart buttons
   document.querySelectorAll('.paket-buy-btn.add-to-cart-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      addToCart({ id: +btn.dataset.id, name: btn.dataset.name, type: btn.dataset.type, price: +btn.dataset.price, items: btn.dataset.items ? JSON.parse(btn.dataset.items) : undefined });
+      addToCart({ id: +btn.dataset.id, name: btn.dataset.name, type: btn.dataset.type, price: +btn.dataset.price, items: btn.dataset.items ? JSON.parse(btn.dataset.items) : undefined, category: 'Paket' });
       btn.style.transform = 'scale(0.95)';
       setTimeout(() => btn.style.transform = '', 150);
     });
@@ -465,17 +486,24 @@ function formatBatchDate(dateStr: string): string {
   document.querySelectorAll('.satuan-initial-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = +btn.dataset.id;
+      const cat = btn.dataset.category || '';
       const minOrder = +(btn.dataset.minOrder || 1);
+
+      // Check restricted category
+      if (RESTRICTED_CATS.includes(cat) && !cartHasPaketOrRokok()) {
+        window.showToast?.(`⚠️ ${cat} hanya bisa dibeli bersama Paket atau Rokok`, 'error');
+        return;
+      }
+
       const cart = getCart();
       const existing = cart.find(i => i.id === id);
       if (!existing) {
-        // Add with minOrder quantity, store minOrder in cart
-        cart.push({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price, quantity: minOrder, minOrder: minOrder });
+        cart.push({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price, quantity: minOrder, minOrder: minOrder, category: cat });
         saveCart(cart);
         const badge = document.getElementById('cartBadge');
         if (badge) { badge.classList.remove('bump'); void badge.offsetWidth; badge.classList.add('bump'); }
       } else {
-        addToCart({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price });
+        addToCart({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price, category: cat });
       }
       updateSatuanCounters();
     });
@@ -485,7 +513,12 @@ function formatBatchDate(dateStr: string): string {
   document.querySelectorAll('.sc-plus').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = +btn.dataset.id;
-      addToCart({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price });
+      const cat = btn.dataset.category || '';
+      if (RESTRICTED_CATS.includes(cat) && !cartHasPaketOrRokok()) {
+        window.showToast?.(`⚠️ ${cat} hanya bisa dibeli bersama Paket atau Rokok`, 'error');
+        return;
+      }
+      addToCart({ id, name: btn.dataset.name, type: 'satuan', price: +btn.dataset.price, category: cat });
       updateSatuanCounters();
     });
   });
@@ -533,6 +566,12 @@ function formatBatchDate(dateStr: string): string {
   // Override addToCart to not show toast for satuan (counter already shows feedback)
   const _origAddToCart = addToCart;
   addToCart = function(product) {
+    // Validate restricted categories
+    const cat = product.category || '';
+    if (RESTRICTED_CATS.includes(cat) && !cartHasPaketOrRokok()) {
+      window.showToast?.(`⚠️ ${cat} hanya bisa dibeli bersama Paket atau Rokok`, 'error');
+      return;
+    }
     const cart = getCart();
     const existing = cart.find(item => item.id === product.id);
     if (existing) existing.quantity += 1;
