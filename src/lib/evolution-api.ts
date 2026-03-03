@@ -129,7 +129,6 @@ export function formatOrderMessage(order: {
         items?: string[];
     }>;
     totalAmount: number;
-    paymentInfo?: string;
 }): string {
     let message = `🛒 *PESANAN BARU - SENTRA*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -156,9 +155,9 @@ export function formatOrderMessage(order: {
     message += `🏢 *Kantor:* ${order.kelompok}\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `💳 *Segera Lakukan Pembayaran:*\n`;
-    message += order.paymentInfo || 'Hubungi admin untuk info pembayaran';
-    message += `\n\nKirim bukti transfer ke nomor ini.`;
-    message += `\n\nTerima kasih telah berbelanja di *Sentra*! 🙏`;
+    message += `Silakan scan gambar/barcode QRIS di atas untuk melakukan pembayaran.\n\n`;
+    message += `Kirim bukti pembayaran ke nomor ini.\n\n`;
+    message += `Terima kasih telah berbelanja di *Sentra*! 🙏`;
 
     return message;
 }
