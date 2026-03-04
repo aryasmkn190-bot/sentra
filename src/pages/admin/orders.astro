@@ -206,7 +206,7 @@ const kelompokList = [...new Set(allOrders.map(o => o.kelompok))].sort();
               <div class="oc-meta-row">
                 <code>{order.orderNumber}</code>
                 <span class="badge badge-neutral">{order.kelompok}</span>
-                <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+                <small class="text-muted">{new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}</small>
               </div>
               <div class="oc-action-row">
                 <span class="oc-total">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>

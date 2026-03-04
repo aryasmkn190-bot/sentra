@@ -33,7 +33,7 @@ const activeBatch = batchesData.find(b => b.isActive);
 
 // Helper to format date for display 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
 }
 
 // Helper for datetime-local input
