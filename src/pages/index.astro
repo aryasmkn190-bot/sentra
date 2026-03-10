@@ -3,7 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { db } from '../lib/db';
-import { products, settings, batches, getBatchStatus } from '../lib/schema';
+import { products, settings, batches, categories, getBatchStatus } from '../lib/schema';
 import { eq, asc, desc } from 'drizzle-orm';
 
 let paketProducts: any[] = [];
@@ -11,12 +11,16 @@ let satuanProducts: any[] = [];
 let activeBatchId: number | null = null;
 let batchInfo = { active: false, batchNumber: 0, name: '', start: '', end: '', status: 'inactive' as string };
 
+let allCategoryRows: any[] = [];
 try {
   const allProducts = await db.select().from(products).where(eq(products.isActive, true)).orderBy(asc(products.sortOrder));
   satuanProducts = allProducts.filter(p => p.type === 'satuan');
   
   // Paket products will be filtered by active batch below
   const allPaketProducts = allProducts.filter(p => p.type === 'paket');
+
+  // Fetch categories from database
+  allCategoryRows = await db.select().from(categories).orderBy(asc(categories.sortOrder));
 
   // Fetch batch info from batches table
   let batchRows = await db.select().from(batches).where(eq(batches.isActive, true)).limit(1);
@@ -53,14 +57,18 @@ try {
 const isBatchOpen = batchInfo.status === 'open';
 const isBatchEnabled = batchInfo.active;
 
-// Group satuan products by category
-const categoryEmojis: Record<string, string> = {
-  'Rokok': '🚬',
-  'Minuman': '🥛',
-  'Makanan': '🍜',
-  'Aksesoris': '🔥',
-  'Lainnya': '📦',
-};
+// Build category data from database
+const categoryEmojis: Record<string, string> = {};
+const categoryOrder: string[] = [];
+const restrictedCats: string[] = [];
+for (const cat of allCategoryRows) {
+  categoryEmojis[cat.name] = cat.emoji;
+  categoryOrder.push(cat.name);
+  if (cat.restricted) restrictedCats.push(cat.name);
+}
+// Fallback for products with no matching category
+if (!categoryEmojis['Lainnya']) categoryEmojis['Lainnya'] = '📦';
+
 const satuanByCategory: Record<string, any[]> = {};
 for (const p of satuanProducts) {
   const cat = p.category || 'Lainnya';
@@ -68,7 +76,6 @@ for (const p of satuanProducts) {
   satuanByCategory[cat].push(p);
 }
 // Sort categories: defined order first, then alphabetical
-const categoryOrder = ['Rokok', 'Minuman', 'Makanan', 'Aksesoris', 'Lainnya'];
 const sortedCategories = Object.keys(satuanByCategory).sort((a, b) => {
   const ai = categoryOrder.indexOf(a);
   const bi = categoryOrder.indexOf(b);
@@ -271,7 +278,7 @@ function formatBatchDate(dateStr: string): string {
   </section>
 
   <!-- Satuan Section -->
-  <section class="section section-tinted" id="satuan">
+  <section class="section section-tinted" id="satuan" data-restricted={JSON.stringify(restrictedCats)}>
     <div class="container">
       <div class="section-header" data-animate>
         <span class="section-chip section-chip-warm">Produk Satuan</span>
@@ -385,8 +392,9 @@ function formatBatchDate(dateStr: string): string {
   document.addEventListener('astro:page-load', () => {
   function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartUI(); }
 
-  // Restricted categories: Minuman & Aksesoris require paket or rokok in cart
-  const RESTRICTED_CATS = ['Minuman', 'Aksesoris'];
+  // Restricted categories: loaded from database, require paket or rokok in cart
+  const _satuanSection = document.getElementById('satuan');
+  const RESTRICTED_CATS = _satuanSection ? JSON.parse(_satuanSection.getAttribute('data-restricted') || '[]') : [];
   function cartHasPaketOrRokok() {
     const cart = getCart();
     return cart.some(i => i.type === 'paket' || (i.type === 'satuan' && i.category === 'Rokok'));

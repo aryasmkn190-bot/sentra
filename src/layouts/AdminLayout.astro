@@ -85,6 +85,12 @@ const activeBatch = allBatches.find(b => b.isActive);
         </a>
       )}
       {isSuperAdmin && (
+        <a href="/admin/categories" class={`nav-item ${activeMenu === 'categories' ? 'active' : ''}`}>
+          <span class="nav-icon">📂</span>
+          <span>Kategori</span>
+        </a>
+      )}
+      {isSuperAdmin && (
         <a href="/admin/batches" class={`nav-item ${activeMenu === 'batches' ? 'active' : ''}`}>
           <span class="nav-icon">📋</span>
           <span>Kelola Batch</span>
@@ -170,6 +176,12 @@ const activeBatch = allBatches.find(b => b.isActive);
       <a href="/admin/products" class={`bottom-nav-item ${activeMenu === 'products' ? 'active' : ''}`}>
         <span class="bottom-nav-icon">🏷️</span>
         <span>Produk</span>
+      </a>
+    )}
+    {isSuperAdmin && (
+      <a href="/admin/categories" class={`bottom-nav-item ${activeMenu === 'categories' ? 'active' : ''}`}>
+        <span class="bottom-nav-icon">📂</span>
+        <span>Kategori</span>
       </a>
     )}
     {isSuperAdmin && (

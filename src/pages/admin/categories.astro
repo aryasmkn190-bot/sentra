@@ -1,0 +1,454 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { categories } from '../../lib/schema';
+import { asc } from 'drizzle-orm';
+import { getAdminUser } from '../../lib/auth';
+
+const adminUser = getAdminUser(Astro.request);
+if (adminUser?.role !== 'super_admin') {
+  return Astro.redirect('/admin');
+}
+
+let allCategories: any[] = [];
+try {
+  allCategories = await db.select().from(categories).orderBy(asc(categories.sortOrder));
+} catch (error) {
+  console.error('Error fetching categories:', error);
+}
+---
+
+<AdminLayout title="Kelola Kategori" activeMenu="categories">
+  <div class="categories-header">
+    <div class="categories-info">
+      <h2 class="section-title">📂 Kategori Produk Satuan</h2>
+      <p class="section-subtitle">Kelola kategori untuk mengelompokkan produk satuan di storefront</p>
+    </div>
+    <button class="btn btn-primary btn-sm" id="addCategoryBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="btn-text-desktop">Tambah Kategori</span>
+      <span class="btn-text-mobile">Tambah</span>
+    </button>
+  </div>
+
+  {allCategories.length > 0 ? (
+    <>
+      <div class="table-wrapper desktop-view">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Emoji</th>
+              <th>Nama Kategori</th>
+              <th>Urutan</th>
+              <th>Restricted</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allCategories.map((cat) => (
+              <tr>
+                <td><span class="cat-emoji">{cat.emoji}</span></td>
+                <td><strong>{cat.name}</strong></td>
+                <td>{cat.sortOrder}</td>
+                <td>
+                  <span class={`badge ${cat.restricted ? 'badge-warning' : 'badge-secondary'}`}>
+                    {cat.restricted ? '🔒 Ya' : '—'}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-btns">
+                    <button class="btn btn-secondary btn-sm edit-cat-btn" data-cat={JSON.stringify(cat)}>✏️</button>
+                    <button class="btn btn-danger btn-sm delete-cat-btn" data-id={cat.id} data-name={cat.name}>🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div class="mobile-view">
+        {allCategories.map((cat) => (
+          <div class="cat-card">
+            <div class="cat-card-left">
+              <span class="cat-card-emoji">{cat.emoji}</span>
+              <div class="cat-card-info">
+                <strong>{cat.name}</strong>
+                <div class="cat-card-meta">
+                  <span>Urutan: {cat.sortOrder}</span>
+                  {cat.restricted && <span class="badge badge-warning" style="font-size:0.65rem;">🔒 Restricted</span>}
+                </div>
+              </div>
+            </div>
+            <div class="cat-card-actions">
+              <button class="icon-btn edit-cat-btn" data-cat={JSON.stringify(cat)}>✏️</button>
+              <button class="icon-btn icon-btn-danger delete-cat-btn" data-id={cat.id} data-name={cat.name}>🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  ) : (
+    <div class="empty-card"><p>📂 Belum ada kategori. Tambahkan kategori pertama!</p></div>
+  )}
+
+  <div class="info-card">
+    <h4>ℹ️ Tentang Kategori</h4>
+    <ul>
+      <li><strong>Emoji</strong> — ikon yang ditampilkan di storefront untuk kategori ini</li>
+      <li><strong>Urutan</strong> — urutan tampil di halaman toko (angka kecil tampil lebih dulu)</li>
+      <li><strong>Restricted</strong> — jika "Ya", produk di kategori ini hanya bisa dibeli jika sudah ada Paket atau produk Rokok di keranjang</li>
+    </ul>
+  </div>
+
+  <!-- Category Modal -->
+  <div class="modal-overlay" id="catModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="catModalTitle">Tambah Kategori</h3>
+        <button class="modal-close" id="catModalClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="catForm">
+        <input type="hidden" id="catId" />
+        <div class="form-group">
+          <label class="form-label">Nama Kategori</label>
+          <input type="text" id="catName" class="form-input" placeholder="Contoh: Pampers" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Emoji</label>
+          <input type="text" id="catEmoji" class="form-input" placeholder="📦" value="📦" maxlength="5" />
+          <small class="form-hint" style="color:var(--color-text-muted); font-size:0.75rem; margin-top:4px; display:block;">Gunakan satu emoji sebagai ikon kategori</small>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Urutan</label>
+            <input type="number" id="catSortOrder" class="form-input" value="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Restricted?</label>
+            <select id="catRestricted" class="form-select">
+              <option value="false">Tidak</option>
+              <option value="true">Ya — Perlu Paket/Rokok</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg">💾 Simpan</button>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const modal = document.getElementById('catModal');
+    const modalTitle = document.getElementById('catModalTitle');
+    const form = document.getElementById('catForm');
+
+    function openModal() { modal?.classList.add('open'); document.body.style.overflow='hidden'; }
+    function closeModal() { modal?.classList.remove('open'); document.body.style.overflow=''; form?.reset(); (document.getElementById('catId') as HTMLInputElement).value = ''; }
+
+    document.getElementById('addCategoryBtn')?.addEventListener('click', () => {
+      if (modalTitle) modalTitle.textContent = 'Tambah Kategori';
+      (document.getElementById('catId') as HTMLInputElement).value = '';
+      form?.reset();
+      openModal();
+    });
+
+    document.getElementById('catModalClose')?.addEventListener('click', closeModal);
+    modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    document.querySelectorAll('.edit-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = JSON.parse((btn as HTMLElement).dataset.cat || '{}');
+        if (modalTitle) modalTitle.textContent = 'Edit Kategori';
+        (document.getElementById('catId') as HTMLInputElement).value = cat.id;
+        (document.getElementById('catName') as HTMLInputElement).value = cat.name;
+        (document.getElementById('catEmoji') as HTMLInputElement).value = cat.emoji;
+        (document.getElementById('catSortOrder') as HTMLInputElement).value = cat.sortOrder;
+        (document.getElementById('catRestricted') as HTMLSelectElement).value = String(cat.restricted);
+        openModal();
+      });
+    });
+
+    document.querySelectorAll('.delete-cat-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const el = btn as HTMLElement;
+        if (!confirm(`Hapus kategori "${el.dataset.name}"?`)) return;
+        try {
+          const res = await fetch(`/api/categories?id=${el.dataset.id}`, { method: 'DELETE' });
+          const result = await res.json();
+          if (result.success) { (window as any).showToast?.('Kategori dihapus'); location.reload(); }
+          else { (window as any).showToast?.(result.message || 'Gagal menghapus', 'error'); }
+        } catch { (window as any).showToast?.('Terjadi kesalahan', 'error'); }
+      });
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const catId = (document.getElementById('catId') as HTMLInputElement).value;
+      const isEdit = !!catId;
+      const data = {
+        id: isEdit ? parseInt(catId) : undefined,
+        name: (document.getElementById('catName') as HTMLInputElement).value,
+        emoji: (document.getElementById('catEmoji') as HTMLInputElement).value || '📦',
+        sortOrder: (document.getElementById('catSortOrder') as HTMLInputElement).value,
+        restricted: (document.getElementById('catRestricted') as HTMLSelectElement).value === 'true',
+      };
+      try {
+        const res = await fetch('/api/categories', {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (result.success) { (window as any).showToast?.(isEdit ? 'Kategori diperbarui' : 'Kategori ditambahkan'); location.reload(); }
+        else { (window as any).showToast?.(result.message || 'Gagal menyimpan', 'error'); }
+      } catch { (window as any).showToast?.('Terjadi kesalahan', 'error'); }
+    });
+  });
+</script>
+
+<style>
+  .categories-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .section-subtitle {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .cat-emoji {
+    font-size: 1.4rem;
+  }
+
+  .btn-text-mobile { display: none; }
+
+  .action-btns { display: flex; gap: 6px; }
+
+  /* Mobile view */
+  .mobile-view { display: none; }
+
+  .cat-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+  .cat-card:hover { border-color: var(--color-border-hover); }
+
+  .cat-card-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .cat-card-emoji {
+    font-size: 1.8rem;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+  }
+
+  .cat-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .cat-card-info strong {
+    font-size: 0.9rem;
+  }
+
+  .cat-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .cat-card-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--color-accent); }
+  .icon-btn-danger:hover { border-color: var(--color-danger); background: rgba(239,68,68,0.06); }
+
+  /* Info card */
+  .info-card {
+    background: var(--color-accent-subtle);
+    border: 1px solid rgba(79, 70, 229, 0.12);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-top: 24px;
+  }
+
+  .info-card h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--color-accent);
+  }
+
+  .info-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .info-card li {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    padding-left: 16px;
+    position: relative;
+  }
+
+  .info-card li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--color-accent);
+    font-weight: bold;
+  }
+
+  /* Badge */
+  .badge-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+
+  .badge-secondary {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-muted);
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 16px;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal-content {
+    max-width: 480px;
+    width: 100%;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-xl);
+    animation: slideInUp 0.3s ease;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .modal-header h3 { font-size: 1.1rem; }
+
+  .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .modal-close:hover { background: rgba(239,68,68,0.08); color: var(--color-danger); }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .empty-card {
+    text-align: center;
+    padding: 40px 24px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-muted);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .desktop-view { display: none; }
+    .mobile-view { display: block; }
+    .btn-text-desktop { display: none; }
+    .btn-text-mobile { display: inline; }
+
+    .modal-content {
+      padding: 20px;
+      margin: 0;
+      max-height: 85vh;
+      border-radius: var(--radius-xl);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .modal-overlay { padding: 8px; }
+    .modal-content { padding: 16px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>

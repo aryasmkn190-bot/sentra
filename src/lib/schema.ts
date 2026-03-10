@@ -21,6 +21,16 @@ export const products = pgTable('products', {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// ===== CATEGORIES =====
+export const categories = pgTable('categories', {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 100 }).notNull().unique(),
+    emoji: varchar('emoji', { length: 10 }).notNull().default('📦'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    restricted: boolean('restricted').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // ===== BATCHES =====
 export const batches = pgTable('batches', {
     id: serial('id').primaryKey(),
@@ -71,6 +81,8 @@ export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type Batch = typeof batches.$inferSelect;
 export type NewBatch = typeof batches.$inferInsert;
+export type Category = typeof categories.$inferSelect;
+export type NewCategory = typeof categories.$inferInsert;
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
