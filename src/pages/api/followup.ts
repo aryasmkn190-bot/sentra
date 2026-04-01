@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '../../lib/db';
 import { orders } from '../../lib/schema';
 import { eq } from 'drizzle-orm';
-import { sendWhatsAppMessage } from '../../lib/evolution-api';
+import { sendWhatsAppImage } from '../../lib/evolution-api';
 import { isAuthenticated } from '../../lib/auth';
 
 function formatFollowUpMessage(order: {
@@ -28,7 +28,7 @@ function formatFollowUpMessage(order: {
     }
 
     message += `\n💰 *Total: Rp ${order.totalAmount.toLocaleString('id-ID')}*\n\n`;
-    message += `⏳ masih menunggu konfirmasi. Silakan lakukan pembayaran agar pesanan dapat diproses. Terima kasih! 😊\n\n`;
+    message += `⏳ masih menunggu konfirmasi. Silakan scan QRIS di atas untuk melakukan pembayaran agar pesanan dapat diproses. Terima kasih! 😊\n\n`;
     message += `📌 _Abaikan pesan ini jika Anda sudah melakukan pembayaran._\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     message += `🤖 _Pesan ini dikirim otomatis oleh sistem *Sentra*._`;
@@ -74,10 +74,14 @@ export const POST: APIRoute = async ({ request }) => {
             totalAmount: order.totalAmount,
         });
 
-        // Send via Evolution API
-        const sent = await sendWhatsAppMessage({
+        // Send QRIS image with follow-up message as caption (same as checkout)
+        const siteUrl = 'https://swasembada.bergerak.space';
+        const qrisUrl = `${siteUrl}/qr.jpeg`;
+
+        const sent = await sendWhatsAppImage({
             number: order.whatsappNumber,
-            message,
+            imageUrl: qrisUrl,
+            caption: message,
         });
 
         if (sent) {
