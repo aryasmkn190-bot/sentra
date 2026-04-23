@@ -350,10 +350,10 @@ async function exportShoppingDetail(filterBatchId: number | null) {
       const orderQty = item.quantity || 1;
       if (item.productType === 'paket' && item.items && Array.isArray(item.items)) {
         for (const subStr of item.items) {
-          const m = subStr.match(/^(.+?)\s*\((\d+)\s*pcs\)\s*$/i);
+          const m = subStr.match(/^(.+?)(?:\s*\((\d+)\s*pcs\)|\s*[—–-]\s*(\d+)\s*pcs)\s*$/i);
           if (m) {
             const sName = m[1].trim();
-            const sQty = parseInt(m[2]) * orderQty;
+            const sQty = parseInt(m[2] || m[3]) * orderQty;
             if (!shopMap[sName]) shopMap[sName] = { name: sName, totalQty: 0, sources: {} };
             shopMap[sName].totalQty += sQty;
             const src = item.productName || 'Paket';

@@ -104,12 +104,12 @@ try {
       const orderQty = item.quantity || 1;
 
       if (item.productType === 'paket' && item.items && Array.isArray(item.items)) {
-        // Parse each sub-item string: "PRODUCT NAME (N pcs)"
+        // Parse each sub-item string: "PRODUCT NAME (N pcs)" or "PRODUCT NAME — N pcs"
         for (const subItemStr of item.items) {
-          const match = subItemStr.match(/^(.+?)\s*\((\d+)\s*pcs\)\s*$/i);
+          const match = subItemStr.match(/^(.+?)(?:\s*\((\d+)\s*pcs\)|\s*[—–-]\s*(\d+)\s*pcs)\s*$/i);
           if (match) {
             const subName = match[1].trim();
-            const subQty = parseInt(match[2]);
+            const subQty = parseInt(match[2] || match[3]);
             const totalQty = subQty * orderQty;
             
             if (!shoppingList[subName]) {
@@ -763,10 +763,10 @@ document.addEventListener('astro:page-load', () => {
         const orderQty = item.quantity || 1;
         if (item.productType === 'paket' && item.items && Array.isArray(item.items)) {
           for (const subStr of item.items) {
-            const m = subStr.match(/^(.+?)\s*\((\d+)\s*pcs\)\s*$/i);
+            const m = subStr.match(/^(.+?)(?:\s*\((\d+)\s*pcs\)|\s*[—–-]\s*(\d+)\s*pcs)\s*$/i);
             if (m) {
               const sName = m[1].trim();
-              const sQty = parseInt(m[2]) * orderQty;
+              const sQty = parseInt(m[2] || m[3]) * orderQty;
               if (!shopMap[sName]) shopMap[sName] = { name: sName, totalQty: 0, sources: {} };
               shopMap[sName].totalQty += sQty;
               const src = item.productName || 'Paket';
