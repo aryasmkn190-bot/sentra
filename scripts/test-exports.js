@@ -7,9 +7,12 @@ const EXPORT_TYPES = [
   'orders-by-status',
   'orders-by-office',
   'product-recap',
+  'product-recap-by-batch',
+  'product-recap-by-office',
   'shopping-detail',
   'revenue-summary',
   'revenue-by-office',
+  'revenue-by-batch',
   'product-list',
   'category-list',
 ];

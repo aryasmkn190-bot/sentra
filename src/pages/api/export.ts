@@ -12,9 +12,12 @@ type ExportType =
   | 'orders-by-status'
   | 'orders-by-office'
   | 'product-recap'
+  | 'product-recap-by-batch'
+  | 'product-recap-by-office'
   | 'shopping-detail'
   | 'revenue-summary'
   | 'revenue-by-office'
+  | 'revenue-by-batch'
   | 'product-list'
   | 'category-list';
 
@@ -93,6 +96,15 @@ export const GET: APIRoute = async ({ request }) => {
         break;
       case 'revenue-by-office':
         ({ workbook, filename } = await exportRevenueByOffice(filterBatchId));
+        break;
+      case 'product-recap-by-batch':
+        ({ workbook, filename } = await exportProductRecapByBatch());
+        break;
+      case 'product-recap-by-office':
+        ({ workbook, filename } = await exportProductRecapByOffice(filterBatchId));
+        break;
+      case 'revenue-by-batch':
+        ({ workbook, filename } = await exportRevenueByBatch());
         break;
       case 'product-list':
         ({ workbook, filename } = await exportProductList());
@@ -491,4 +503,149 @@ async function exportCategoryList() {
 
   const dateStr = new Date().toISOString().slice(0, 10);
   return { workbook: wb, filename: `Daftar_Kategori_${dateStr}.xlsx` };
+}
+
+// ===== HELPER: Build product recap data from orders =====
+function buildProductRecapData(orderList: any[]) {
+  const paidStatuses = ['confirmed', 'processing', 'completed'];
+  const confirmed = orderList.filter(o => paidStatuses.includes(o.status));
+  const itemMap: Record<string, { name: string; type: string; quantity: number; revenue: number }> = {};
+  for (const order of confirmed) {
+    const items = (order.items as any[]) || [];
+    for (const item of items) {
+      const key = item.productName || 'Unknown';
+      if (!itemMap[key]) {
+        itemMap[key] = { name: key, type: item.productType || 'satuan', quantity: 0, revenue: 0 };
+      }
+      itemMap[key].quantity += item.quantity || 0;
+      itemMap[key].revenue += (item.quantity || 0) * (item.price || 0);
+    }
+  }
+  return Object.values(itemMap).sort((a, b) => b.quantity - a.quantity);
+}
+
+function recapToSheet(sorted: { name: string; type: string; quantity: number; revenue: number }[]) {
+  const data = sorted.map((item, idx) => ({
+    '#': idx + 1,
+    'Nama Produk': item.name,
+    'Tipe': item.type === 'paket' ? 'Paket' : 'Satuan',
+    'Jumlah Terjual': item.quantity,
+    'Total Pendapatan': item.revenue,
+  }));
+  const ws = XLSX.utils.json_to_sheet(data.length > 0 ? data : [{ 'Info': 'Tidak ada data' }]);
+  setColWidths(ws, [6, 30, 12, 18, 20]);
+  return ws;
+}
+
+// ===== 11. EXPORT PRODUCT RECAP PER BATCH =====
+async function exportProductRecapByBatch() {
+  const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  const allBatches = await db.select().from(batches).orderBy(desc(batches.batchNumber));
+
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet across all batches
+  const allRecap = buildProductRecapData(allOrders);
+  const summaryWs = recapToSheet(allRecap);
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Semua Batch');
+
+  // Per-batch sheets
+  for (const batch of allBatches) {
+    const batchOrders = allOrders.filter(o => o.batchId === batch.id);
+    const recap = buildProductRecapData(batchOrders);
+    const ws = recapToSheet(recap);
+    const sheetName = `Batch ${batch.batchNumber}${batch.name && batch.name !== `Batch ${batch.batchNumber}` ? ' - ' + batch.name : ''}`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+  }
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  return { workbook: wb, filename: `Rekap_Produk_Per_Batch_${dateStr}.xlsx` };
+}
+
+// ===== 12. EXPORT PRODUCT RECAP PER OFFICE =====
+async function exportProductRecapByOffice(filterBatchId: number | null) {
+  const allOrders = await getFilteredOrders(filterBatchId);
+  const officeMap = new Map<string, typeof allOrders>();
+
+  for (const order of allOrders) {
+    const office = order.kelompok;
+    if (!officeMap.has(office)) officeMap.set(office, []);
+    officeMap.get(office)!.push(order);
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  const allRecap = buildProductRecapData(allOrders);
+  const summaryWs = recapToSheet(allRecap);
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Semua Kantor');
+
+  // Per-office sheets
+  for (const [office, orderList] of officeMap) {
+    const recap = buildProductRecapData(orderList);
+    const ws = recapToSheet(recap);
+    XLSX.utils.book_append_sheet(wb, ws, office.slice(0, 31));
+  }
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  return { workbook: wb, filename: `Rekap_Produk_Per_Kantor_${dateStr}.xlsx` };
+}
+
+// ===== 13. EXPORT REVENUE BY BATCH =====
+async function exportRevenueByBatch() {
+  const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  const allBatches = await db.select().from(batches).orderBy(desc(batches.batchNumber));
+
+  const paidStatuses = ['confirmed', 'processing', 'completed'];
+
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  const summaryData = allBatches.map(batch => {
+    const batchOrders = allOrders.filter(o => o.batchId === batch.id);
+    const pendingRev = batchOrders.filter(o => o.status === 'pending').reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const paidRev = batchOrders.filter(o => paidStatuses.includes(o.status)).reduce((s, o) => s + (o.totalAmount || 0), 0);
+    return {
+      'Batch': `Batch ${batch.batchNumber}${batch.name && batch.name !== `Batch ${batch.batchNumber}` ? ' - ' + batch.name : ''}`,
+      'Total Pesanan': batchOrders.length,
+      'Pesanan Pending': batchOrders.filter(o => o.status === 'pending').length,
+      'Pesanan Dibayar': batchOrders.filter(o => paidStatuses.includes(o.status)).length,
+      'Revenue Pending': pendingRev,
+      'Revenue Dibayar': paidRev,
+      'Total Revenue': pendingRev + paidRev,
+    };
+  });
+
+  const summaryWs = XLSX.utils.json_to_sheet(summaryData.length > 0 ? summaryData : [{ 'Info': 'Tidak ada data batch' }]);
+  setColWidths(summaryWs, [28, 16, 16, 16, 18, 18, 18]);
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Ringkasan');
+
+  // Per-batch detail sheets
+  for (const batch of allBatches) {
+    const batchOrders = allOrders.filter(o => o.batchId === batch.id);
+    const pending = batchOrders.filter(o => o.status === 'pending');
+    const confirmed = batchOrders.filter(o => o.status === 'confirmed');
+    const processing = batchOrders.filter(o => o.status === 'processing');
+    const completed = batchOrders.filter(o => o.status === 'completed');
+    const cancelled = batchOrders.filter(o => o.status === 'cancelled');
+    const sumAmount = (arr: typeof allOrders) => arr.reduce((s, o) => s + (o.totalAmount || 0), 0);
+
+    const data = [
+      { 'Kategori': 'Menunggu (Pending)', 'Jumlah Pesanan': pending.length, 'Total Nilai': sumAmount(pending) },
+      { 'Kategori': 'Dibayar (Confirmed)', 'Jumlah Pesanan': confirmed.length, 'Total Nilai': sumAmount(confirmed) },
+      { 'Kategori': 'Diproses (Processing)', 'Jumlah Pesanan': processing.length, 'Total Nilai': sumAmount(processing) },
+      { 'Kategori': 'Selesai (Completed)', 'Jumlah Pesanan': completed.length, 'Total Nilai': sumAmount(completed) },
+      { 'Kategori': 'Dibatalkan (Cancelled)', 'Jumlah Pesanan': cancelled.length, 'Total Nilai': sumAmount(cancelled) },
+      { 'Kategori': '', 'Jumlah Pesanan': null as any, 'Total Nilai': null as any },
+      { 'Kategori': 'TOTAL PENDAPATAN', 'Jumlah Pesanan': confirmed.length + processing.length + completed.length, 'Total Nilai': sumAmount([...confirmed, ...processing, ...completed]) },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    setColWidths(ws, [30, 18, 20]);
+    const sheetName = `Batch ${batch.batchNumber}`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+  }
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  return { workbook: wb, filename: `Pendapatan_Per_Batch_${dateStr}.xlsx` };
 }

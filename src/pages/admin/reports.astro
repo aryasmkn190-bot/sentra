@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { db } from '../../lib/db';
-import { orders, products, categories } from '../../lib/schema';
+import { orders, products, categories, batches } from '../../lib/schema';
 import { getAdminUser } from '../../lib/auth';
 
 const adminUser = getAdminUser(Astro.request);
@@ -11,7 +11,7 @@ if (adminUser?.role !== 'super_admin') return Astro.redirect('/admin');
 const batchParam = new URL(Astro.request.url).searchParams.get('batch');
 
 // Fetch counts for badges
-let orderCount = 0, productCount = 0, categoryCount = 0, pendingCount = 0;
+let orderCount = 0, productCount = 0, categoryCount = 0, pendingCount = 0, batchCount = 0;
 try {
   const allOrders = await db.select().from(orders);
   const filtered = batchParam && batchParam !== 'all' 
@@ -23,6 +23,8 @@ try {
   productCount = allProducts.length;
   const allCats = await db.select().from(categories);
   categoryCount = allCats.length;
+  const allBatches = await db.select().from(batches);
+  batchCount = allBatches.length;
 } catch (e) { console.error(e); }
 
 const batchQuery = batchParam && batchParam !== 'all' ? `&batch=${batchParam}` : '';
@@ -52,7 +54,9 @@ const sections: { title: string; emoji: string; cards: ExportCard[] }[] = [
     title: 'Rekap Produk',
     emoji: '🏷️',
     cards: [
-      { id: 'product-recap', title: 'Rekap Produk Terjual', desc: 'Ringkasan semua produk yang terjual dari pesanan yang sudah dibayar', icon: '📈', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', badge: 'dari pesanan dibayar', type: 'product-recap' },
+      { id: 'product-recap', title: 'Rekap Produk Terjual', desc: 'Ringkasan semua produk yang terjual dari pesanan yang sudah dibayar/selesai', icon: '📈', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', badge: 'dari pesanan dibayar', type: 'product-recap' },
+      { id: 'product-recap-by-batch', title: 'Rekap Produk per Batch', desc: 'Multi-sheet: rekap produk terjual dipisah per batch — ringkasan + detail tiap batch', icon: '📦', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', badge: `${batchCount} batch`, type: 'product-recap-by-batch' },
+      { id: 'product-recap-by-office', title: 'Rekap Produk per Kantor', desc: 'Multi-sheet: rekap produk terjual dipisah per kantor/kelompok', icon: '🏢', gradient: 'linear-gradient(135deg, #06B6D4, #22D3EE)', badge: 'per kantor', type: 'product-recap-by-office' },
       { id: 'shopping-detail', title: 'Rekap Belanja Detail', desc: 'Total semua produk yang perlu disiapkan termasuk isi paket × jumlah pesanan', icon: '🛒', gradient: 'linear-gradient(135deg, #14B8A6, #2DD4BF)', badge: 'termasuk isi paket', type: 'shopping-detail' },
     ],
   },
@@ -62,6 +66,7 @@ const sections: { title: string; emoji: string; cards: ExportCard[] }[] = [
     cards: [
       { id: 'revenue-summary', title: 'Laporan Pendapatan', desc: 'Ringkasan keuangan keseluruhan per status pesanan', icon: '💵', gradient: 'linear-gradient(135deg, #10B981, #34D399)', badge: 'ringkasan', type: 'revenue-summary' },
       { id: 'revenue-by-office', title: 'Pendapatan per Kantor', desc: 'Breakdown pendapatan per kantor dengan perbandingan pending vs dibayar', icon: '🏦', gradient: 'linear-gradient(135deg, #6366F1, #818CF8)', badge: 'per kantor', type: 'revenue-by-office' },
+      { id: 'revenue-by-batch', title: 'Pendapatan per Batch', desc: 'Multi-sheet: ringkasan pendapatan + detail keuangan tiap batch', icon: '📊', gradient: 'linear-gradient(135deg, #F59E0B, #FBBF24)', badge: `${batchCount} batch`, type: 'revenue-by-batch' },
     ],
   },
   {
