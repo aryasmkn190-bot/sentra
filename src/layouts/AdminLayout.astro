@@ -97,6 +97,12 @@ const activeBatch = allBatches.find(b => b.isActive);
         </a>
       )}
       {isSuperAdmin && (
+        <a href="/admin/reports" class={`nav-item ${activeMenu === 'reports' ? 'active' : ''}`}>
+          <span class="nav-icon">📥</span>
+          <span>Laporan</span>
+        </a>
+      )}
+      {isSuperAdmin && (
         <a href="/admin/settings" class={`nav-item ${activeMenu === 'settings' ? 'active' : ''}`}>
           <span class="nav-icon">⚙️</span>
           <span>Pengaturan</span>
@@ -188,6 +194,12 @@ const activeBatch = allBatches.find(b => b.isActive);
       <a href="/admin/batches" class={`bottom-nav-item ${activeMenu === 'batches' ? 'active' : ''}`}>
         <span class="bottom-nav-icon">📋</span>
         <span>Batch</span>
+      </a>
+    )}
+    {isSuperAdmin && (
+      <a href="/admin/reports" class={`bottom-nav-item ${activeMenu === 'reports' ? 'active' : ''}`}>
+        <span class="bottom-nav-icon">📥</span>
+        <span>Laporan</span>
       </a>
     )}
     {isSuperAdmin ? (

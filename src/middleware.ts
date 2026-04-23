@@ -2,7 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { isAuthenticated, getAdminUser, isSuperAdmin } from './lib/auth';
 
 // Routes that only super_admin can access
-const superAdminRoutes = ['/admin/users'];
+const superAdminRoutes = ['/admin/users', '/admin/reports'];
 
 export const onRequest = defineMiddleware(async (context, next) => {
     const url = new URL(context.request.url);

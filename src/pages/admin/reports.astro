@@ -1,0 +1,318 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { db } from '../../lib/db';
+import { orders, products, categories } from '../../lib/schema';
+import { getAdminUser } from '../../lib/auth';
+
+const adminUser = getAdminUser(Astro.request);
+if (adminUser?.role !== 'super_admin') return Astro.redirect('/admin');
+
+// Get batch filter
+const batchParam = new URL(Astro.request.url).searchParams.get('batch');
+
+// Fetch counts for badges
+let orderCount = 0, productCount = 0, categoryCount = 0, pendingCount = 0;
+try {
+  const allOrders = await db.select().from(orders);
+  const filtered = batchParam && batchParam !== 'all' 
+    ? allOrders.filter(o => o.batchId === parseInt(batchParam)) 
+    : allOrders;
+  orderCount = filtered.length;
+  pendingCount = filtered.filter(o => o.status === 'pending').length;
+  const allProducts = await db.select().from(products);
+  productCount = allProducts.length;
+  const allCats = await db.select().from(categories);
+  categoryCount = allCats.length;
+} catch (e) { console.error(e); }
+
+const batchQuery = batchParam && batchParam !== 'all' ? `&batch=${batchParam}` : '';
+
+interface ExportCard {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  gradient: string;
+  badge: string;
+  type: string;
+}
+
+const sections: { title: string; emoji: string; cards: ExportCard[] }[] = [
+  {
+    title: 'Pesanan',
+    emoji: '📦',
+    cards: [
+      { id: 'all-orders', title: 'Semua Pesanan', desc: 'Export semua pesanan dengan detail lengkap termasuk item, total, dan status', icon: '📋', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)', badge: `${orderCount} pesanan`, type: 'all-orders' },
+      { id: 'pending-orders', title: 'Pesanan Pending', desc: 'Khusus pesanan yang belum dibayar — cocok untuk follow-up pelanggan', icon: '⏳', gradient: 'linear-gradient(135deg, #F59E0B, #FBBF24)', badge: `${pendingCount} pending`, type: 'pending-orders' },
+      { id: 'orders-by-status', title: 'Pesanan per Status', desc: 'Multi-sheet: setiap status pesanan di sheet terpisah dalam satu file', icon: '📊', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', badge: '5 sheet', type: 'orders-by-status' },
+      { id: 'orders-by-office', title: 'Pesanan per Kantor', desc: 'Multi-sheet: ringkasan + detail pesanan per kantor/kelompok', icon: '🏢', gradient: 'linear-gradient(135deg, #06B6D4, #22D3EE)', badge: 'per kantor', type: 'orders-by-office' },
+    ],
+  },
+  {
+    title: 'Rekap Produk',
+    emoji: '🏷️',
+    cards: [
+      { id: 'product-recap', title: 'Rekap Produk Terjual', desc: 'Ringkasan semua produk yang terjual dari pesanan yang sudah dibayar', icon: '📈', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', badge: 'dari pesanan dibayar', type: 'product-recap' },
+      { id: 'shopping-detail', title: 'Rekap Belanja Detail', desc: 'Total semua produk yang perlu disiapkan termasuk isi paket × jumlah pesanan', icon: '🛒', gradient: 'linear-gradient(135deg, #14B8A6, #2DD4BF)', badge: 'termasuk isi paket', type: 'shopping-detail' },
+    ],
+  },
+  {
+    title: 'Keuangan',
+    emoji: '💰',
+    cards: [
+      { id: 'revenue-summary', title: 'Laporan Pendapatan', desc: 'Ringkasan keuangan keseluruhan per status pesanan', icon: '💵', gradient: 'linear-gradient(135deg, #10B981, #34D399)', badge: 'ringkasan', type: 'revenue-summary' },
+      { id: 'revenue-by-office', title: 'Pendapatan per Kantor', desc: 'Breakdown pendapatan per kantor dengan perbandingan pending vs dibayar', icon: '🏦', gradient: 'linear-gradient(135deg, #6366F1, #818CF8)', badge: 'per kantor', type: 'revenue-by-office' },
+    ],
+  },
+  {
+    title: 'Data Master',
+    emoji: '📂',
+    cards: [
+      { id: 'product-list', title: 'Daftar Produk', desc: 'Export semua produk beserta harga, tipe, kategori, dan status', icon: '🏷️', gradient: 'linear-gradient(135deg, #EC4899, #F472B6)', badge: `${productCount} produk`, type: 'product-list' },
+      { id: 'category-list', title: 'Daftar Kategori', desc: 'Export semua kategori produk', icon: '📁', gradient: 'linear-gradient(135deg, #F97316, #FB923C)', badge: `${categoryCount} kategori`, type: 'category-list' },
+    ],
+  },
+];
+---
+
+<AdminLayout title="Laporan & Export" activeMenu="reports">
+  <div class="reports-page">
+    <div class="reports-header">
+      <div class="rh-info">
+        <h2>📥 One-Click Export</h2>
+        <p>Klik salah satu card di bawah untuk langsung mengunduh file <strong>.xlsx</strong> (Excel)</p>
+      </div>
+    </div>
+
+    {sections.map(section => (
+      <div class="report-section">
+        <h3 class="section-label">{section.emoji} {section.title}</h3>
+        <div class="export-grid">
+          {section.cards.map(card => (
+            <button
+              class="export-card"
+              id={`export-${card.id}`}
+              data-type={card.type}
+              data-batch-query={batchQuery}
+            >
+              <div class="ec-icon" style={`background: ${card.gradient};`}>
+                <span>{card.icon}</span>
+              </div>
+              <div class="ec-body">
+                <div class="ec-title">{card.title}</div>
+                <div class="ec-desc">{card.desc}</div>
+              </div>
+              <div class="ec-footer">
+                <span class="ec-badge">{card.badge}</span>
+                <span class="ec-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Export XLSX</span>
+                </span>
+              </div>
+              <!-- Loading overlay -->
+              <div class="ec-loading">
+                <div class="ec-spinner"></div>
+                <span>Generating...</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</AdminLayout>
+
+<script>
+document.addEventListener('astro:page-load', () => {
+  const cards = document.querySelectorAll('.export-card');
+  if (!cards.length) return;
+
+  cards.forEach(card => {
+    card.addEventListener('click', async () => {
+      const type = card.dataset.type;
+      const batchQuery = card.dataset.batchQuery || '';
+      if (card.classList.contains('loading')) return;
+
+      card.classList.add('loading');
+      try {
+        const res = await fetch(`/api/export?type=${type}${batchQuery}`);
+        if (!res.ok) throw new Error('Export failed');
+
+        const blob = await res.blob();
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const filenameMatch = disposition.match(/filename="(.+)"/);
+        const filename = filenameMatch ? filenameMatch[1] : `export_${type}.xlsx`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        window.showToast?.(`✅ ${filename} berhasil diunduh`);
+      } catch (err) {
+        console.error(err);
+        window.showToast?.('Gagal mengunduh file export', 'error');
+      } finally {
+        card.classList.remove('loading');
+      }
+    });
+  });
+});
+</script>
+
+<style>
+  .reports-page { max-width: 900px; }
+
+  .reports-header {
+    margin-bottom: 28px;
+  }
+  .rh-info h2 {
+    font-size: 1.3rem;
+    font-family: var(--font-heading);
+    margin-bottom: 4px;
+  }
+  .rh-info p {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+  }
+
+  .report-section { margin-bottom: 32px; }
+  .section-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+    padding-left: 2px;
+  }
+
+  .export-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  /* ===== EXPORT CARD ===== */
+  .export-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    background: var(--color-bg-card);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    font-family: var(--font-body);
+    box-shadow: var(--shadow-card);
+  }
+  .export-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-3px);
+  }
+  .export-card:active {
+    transform: translateY(-1px);
+  }
+
+  .ec-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    flex-shrink: 0;
+  }
+
+  .ec-body { flex: 1; min-width: 0; }
+  .ec-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+  }
+  .ec-desc {
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+    line-height: 1.45;
+    margin-bottom: 14px;
+  }
+
+  .ec-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+    margin-top: auto;
+  }
+  .ec-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: var(--color-bg-tertiary);
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+  }
+  .ec-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    transition: gap 0.2s;
+  }
+  .export-card:hover .ec-action { gap: 7px; }
+
+  /* Loading state */
+  .ec-loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(4px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: var(--radius-lg);
+    z-index: 2;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-accent);
+  }
+  .export-card.loading .ec-loading { display: flex; }
+  .export-card.loading { pointer-events: none; }
+
+  .ec-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .export-grid { grid-template-columns: 1fr; gap: 12px; }
+    .export-card { padding: 16px; }
+    .ec-icon { width: 38px; height: 38px; font-size: 1.1rem; margin-bottom: 12px; }
+    .reports-page { padding-bottom: 40px; }
+  }
+</style>
