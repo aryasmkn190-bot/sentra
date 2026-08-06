@@ -8,7 +8,8 @@
  * Env vars (set in Vercel):
  *   OPENWA_API_URL   — e.g. https://wa.bergerak.space
  *   OPENWA_API_KEY   — API key dari dashboard OpenWA
- *   OPENWA_SESSION   — nama session WhatsApp (mis. "sentra")
+ *   OPENWA_SESSION   — UUID session WhatsApp (bukan nama! ambil dari GET /api/sessions,
+ *                      mis. proteus = f235a915-5d0f-489b-ba5b-7100231e9483)
  */
 
 interface SendMessageOptions {

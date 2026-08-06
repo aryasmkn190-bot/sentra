@@ -134,7 +134,7 @@ async function seed() {
         { key: 'payment_info', value: 'Transfer ke BCA 1234567890 a.n. Swasembada-DK' },
         { key: 'openwa_api_url', value: 'https://wa.bergerak.space' },
         { key: 'openwa_api_key', value: '' },
-        { key: 'openwa_session', value: 'sentra' },
+        { key: 'openwa_session', value: 'f235a915-5d0f-489b-ba5b-7100231e9483' },
     ];
 
     for (const s of defaultSettings) {
