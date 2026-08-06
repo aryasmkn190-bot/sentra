@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '../../lib/db';
 import { orders, settings, batches, getBatchStatus } from '../../lib/schema';
 import { eq } from 'drizzle-orm';
-import { sendWhatsAppMessage, sendWhatsAppImage, formatOrderMessage } from '../../lib/evolution-api';
+import { sendWhatsAppMessage, sendWhatsAppImage, formatOrderMessage } from '../../lib/openwa-api';
 import type { OrderItem } from '../../lib/schema';
 
 export const POST: APIRoute = async ({ request }) => {

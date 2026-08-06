@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '../../lib/db';
 import { orders } from '../../lib/schema';
 import { eq } from 'drizzle-orm';
-import { sendWhatsAppImage } from '../../lib/evolution-api';
+import { sendWhatsAppImage } from '../../lib/openwa-api';
 import { isAuthenticated } from '../../lib/auth';
 
 function formatFollowUpMessage(order: {

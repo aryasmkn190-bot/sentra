@@ -1,45 +1,70 @@
+/**
+ * OpenWA WhatsApp Gateway client.
+ *
+ * Migrated from Evolution API (2026-08-06).
+ * Docs: https://wa.bergerak.space/api (OpenWA)
+ * Auth: X-API-Key header.
+ *
+ * Env vars (set in Vercel):
+ *   OPENWA_API_URL   — e.g. https://wa.bergerak.space
+ *   OPENWA_API_KEY   — API key dari dashboard OpenWA
+ *   OPENWA_SESSION   — nama session WhatsApp (mis. "sentra")
+ */
+
 interface SendMessageOptions {
     number: string;
     message: string;
 }
 
-export async function sendWhatsAppMessage({ number, message }: SendMessageOptions): Promise<boolean> {
-    const apiUrl = (import.meta.env.EVOLUTION_API_URL ?? process.env.EVOLUTION_API_URL ?? '').trim();
-    const apiKey = (import.meta.env.EVOLUTION_API_KEY ?? process.env.EVOLUTION_API_KEY ?? '').trim();
-    const instance = (import.meta.env.EVOLUTION_INSTANCE ?? process.env.EVOLUTION_INSTANCE ?? '').trim();
+interface SendImageOptions {
+    number: string;
+    imageUrl: string;
+    caption?: string;
+}
 
-    if (!apiUrl || !apiKey || !instance) {
-        console.error('[WA] Evolution API not configured. Missing vars:', {
+function openwaConfig() {
+    const apiUrl = (import.meta.env.OPENWA_API_URL ?? process.env.OPENWA_API_URL ?? 'https://wa.bergerak.space').trim();
+    const apiKey = (import.meta.env.OPENWA_API_KEY ?? process.env.OPENWA_API_KEY ?? '').trim();
+    const session = (import.meta.env.OPENWA_SESSION ?? process.env.OPENWA_SESSION ?? '').trim();
+    return { apiUrl, apiKey, session };
+}
+
+// Normalize phone: 08xxx / 628xxx / +628xxx → 628xxx
+function normalizeNumber(number: string): string {
+    let n = number.replace(/\D/g, '');
+    if (n.startsWith('0')) {
+        n = '62' + n.substring(1);
+    }
+    if (!n.startsWith('62')) {
+        n = '62' + n;
+    }
+    return n;
+}
+
+export async function sendWhatsAppMessage({ number, message }: SendMessageOptions): Promise<boolean> {
+    const { apiUrl, apiKey, session } = openwaConfig();
+
+    if (!apiKey || !session) {
+        console.error('[WA] OpenWA not configured. Missing vars:', {
             hasApiUrl: !!apiUrl,
             hasApiKey: !!apiKey,
-            hasInstance: !!instance,
+            hasSession: !!session,
         });
         return false;
     }
 
-    // Normalize phone number
-    let normalizedNumber = number.replace(/\D/g, '');
-    if (normalizedNumber.startsWith('0')) {
-        normalizedNumber = '62' + normalizedNumber.substring(1);
-    }
-    if (!normalizedNumber.startsWith('62')) {
-        normalizedNumber = '62' + normalizedNumber;
-    }
-
-    const endpoint = `${apiUrl}/message/sendText/${instance}`;
-    console.log(`[WA] Sending to ${normalizedNumber} via ${endpoint}`);
+    const chatId = `${normalizeNumber(number)}@c.us`;
+    const endpoint = `${apiUrl}/api/sessions/${session}/messages/send-text`;
+    console.log(`[WA] Sending text to ${chatId} via ${endpoint}`);
 
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': apiKey,
+                'X-API-Key': apiKey,
             },
-            body: JSON.stringify({
-                number: normalizedNumber,
-                text: message,
-            }),
+            body: JSON.stringify({ chatId, text: message }),
         });
 
         const responseText = await response.text();
@@ -57,47 +82,29 @@ export async function sendWhatsAppMessage({ number, message }: SendMessageOption
     }
 }
 
-interface SendImageOptions {
-    number: string;
-    imageUrl: string;
-    caption?: string;
-}
-
 export async function sendWhatsAppImage({ number, imageUrl, caption }: SendImageOptions): Promise<boolean> {
-    const apiUrl = (import.meta.env.EVOLUTION_API_URL ?? process.env.EVOLUTION_API_URL ?? '').trim();
-    const apiKey = (import.meta.env.EVOLUTION_API_KEY ?? process.env.EVOLUTION_API_KEY ?? '').trim();
-    const instance = (import.meta.env.EVOLUTION_INSTANCE ?? process.env.EVOLUTION_INSTANCE ?? '').trim();
+    const { apiUrl, apiKey, session } = openwaConfig();
 
-    if (!apiUrl || !apiKey || !instance) {
-        console.error('[WA] Evolution API not configured for image send');
+    if (!apiKey || !session) {
+        console.error('[WA] OpenWA not configured for image send');
         return false;
     }
 
-    // Normalize phone number
-    let normalizedNumber = number.replace(/\D/g, '');
-    if (normalizedNumber.startsWith('0')) {
-        normalizedNumber = '62' + normalizedNumber.substring(1);
-    }
-    if (!normalizedNumber.startsWith('62')) {
-        normalizedNumber = '62' + normalizedNumber;
-    }
-
-    const endpoint = `${apiUrl}/message/sendMedia/${instance}`;
-    console.log(`[WA] Sending QRIS image to ${normalizedNumber} via ${endpoint}`);
+    const chatId = `${normalizeNumber(number)}@c.us`;
+    const endpoint = `${apiUrl}/api/sessions/${session}/messages/send-image`;
+    console.log(`[WA] Sending QRIS image to ${chatId} via ${endpoint}`);
 
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': apiKey,
+                'X-API-Key': apiKey,
             },
             body: JSON.stringify({
-                number: normalizedNumber,
-                mediatype: 'image',
-                mimetype: 'image/jpeg',
+                chatId,
+                url: imageUrl,
                 caption: caption || '',
-                media: imageUrl,
             }),
         });
 

@@ -132,9 +132,9 @@ async function seed() {
         { key: 'store_name', value: 'Swasembada-DK' },
         { key: 'store_phone', value: '628xxxxxxxxxx' },
         { key: 'payment_info', value: 'Transfer ke BCA 1234567890 a.n. Swasembada-DK' },
-        { key: 'evolution_api_url', value: '' },
-        { key: 'evolution_api_key', value: '' },
-        { key: 'evolution_instance', value: '' },
+        { key: 'openwa_api_url', value: 'https://wa.bergerak.space' },
+        { key: 'openwa_api_key', value: '' },
+        { key: 'openwa_session', value: 'sentra' },
     ];
 
     for (const s of defaultSettings) {
